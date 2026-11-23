@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+}
+
+body {
+  @apply bg-stone-50 font-sans text-stone-900 antialiased;
+}
