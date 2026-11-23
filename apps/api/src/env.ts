@@ -20,6 +20,11 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  /** Run time-based work in this process (off in tests, which drive it by hand). */
+  SCHEDULER: z
+    .enum(["on", "off"])
+    .default("on")
+    .transform((value) => value === "on"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).default("log"),
 });
 

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Logger, NotFoundException } from "@nestjs/common";
 import type { ArgumentsHost } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import { ErrorsFilter } from "../src/common/errors.filter.ts";
@@ -48,7 +48,7 @@ describe("ErrorsFilter", () => {
   });
 
   it("never leaks the details of an unexpected error", () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const log = vi.spyOn(Logger.prototype, "error").mockImplementation(() => {});
     const sent = catchWith(new Error("connection string postgres://secret@db"));
     expect(sent.status).toBe(500);
     expect(JSON.stringify(sent.body)).not.toContain("secret");

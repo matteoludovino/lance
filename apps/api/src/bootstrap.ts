@@ -5,11 +5,15 @@ import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fa
 import { AppModule } from "./app.module.ts";
 import { ErrorsFilter } from "./common/errors.filter.ts";
 import type { Env } from "./env.ts";
+import type { Clock } from "./time/clock.ts";
 
 /** Builds the HTTP application (used by main.ts and by the tests, which then call `inject`). */
-export async function createApp(env: Env, { logger = true }: { logger?: boolean } = {}) {
+export async function createApp(
+  env: Env,
+  { logger = true, clock }: { logger?: boolean; clock?: Clock } = {},
+) {
   const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule.with(env),
+    AppModule.with(env, { clock }),
     new FastifyAdapter({ trustProxy: env.TRUST_PROXY, bodyLimit: 256 * 1024 }),
     { logger: logger ? appLogger(env) : false },
   );
