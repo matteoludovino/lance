@@ -7,7 +7,6 @@ const E2E_DATABASE_URL =
 
 export default defineConfig({
   testDir: "e2e",
-  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   retries: process.env["CI"] ? 1 : 0,
@@ -23,7 +22,9 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "npm run start -w @lance/api",
+      // Playwright starts the servers before any global setup: the database is prepared (migrated, with
+      // the seeded marketplace) right before the API starts.
+      command: `npm run db:prepare -w @lance/api -- ${E2E_DATABASE_URL} && npm run db:seed -w @lance/api && npm run start -w @lance/api`,
       url: "http://localhost:8040/api/health",
       env: {
         DATABASE_URL: E2E_DATABASE_URL,

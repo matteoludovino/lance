@@ -13,6 +13,7 @@ test("sign up, confirm by email, build a freelancer profile and see it as a visi
 
   await page.getByRole("group", { name: "Modo" }).getByRole("button", { name: "Trabalhar" }).click();
   await page.getByRole("link", { name: "Criar perfil de freelancer" }).click();
+  await expect(page.getByRole("heading", { name: "Seu perfil" })).toBeVisible();
   await field(page, "Título").fill("Designer de interfaces para apps");
   await page
     .getByLabel("Sobre você")
@@ -50,6 +51,8 @@ test("a new password, from the emailed link, signs out every other browser", asy
   await other.getByRole("button", { name: "Entrar" }).click();
   await expect(other.getByRole("alert").filter({ hasText: "E-mail ou senha incorretos." })).toBeVisible();
   await other.getByRole("link", { name: "Esqueci minha senha" }).click();
+  // Until the new page shows, the sign-in form (with its own E-mail field) is still on screen.
+  await expect(other.getByRole("heading", { name: "Esqueci minha senha" })).toBeVisible();
   await field(other, "E-mail").fill(email);
   await other.getByRole("button", { name: "Enviar link" }).click();
   await expect(other.getByText("o link já está a caminho")).toBeVisible();
