@@ -25,6 +25,11 @@ const schema = z.object({
     .enum(["on", "off"])
     .default("on")
     .transform((value) => value === "on"),
+  /** The web app's public address, for links in emails. */
+  WEB_URL: z.url().default("http://localhost:3030"),
+  /** Where email goes (smtp://localhost:1025 is Mailpit). Unset: emails are only kept in the database. */
+  SMTP_URL: z.url().optional(),
+  MAIL_FROM: z.string().default("Lance <nao-responda@lance.local>"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).default("log"),
 });
 

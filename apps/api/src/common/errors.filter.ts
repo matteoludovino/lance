@@ -53,6 +53,9 @@ export class ErrorsFilter implements ExceptionFilter {
       typeof response === "object" && response !== null && "code" in response
         ? (response as ApiError["error"])
         : null;
+    // Rate limits say how long to wait.
+    const retryAfter = (response as { retryAfter?: unknown } | null)?.retryAfter;
+    if (typeof retryAfter === "number") void reply.header("Retry-After", String(retryAfter));
     void reply
       .status(status)
       .send(body(own?.code ?? fallbackCode, own?.message ?? fallbackMessage, own?.fields));

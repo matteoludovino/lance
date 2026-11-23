@@ -16,6 +16,8 @@ model Sandbox {
   createdAt    DateTime      @default(now()) @db.Timestamptz(3)
   expiresAt    DateTime      @db.Timestamptz(3)
   outboxEvents OutboxEvent[]
+  users        User[]
+  sentEmails   SentEmail[]
 
   @@index([expiresAt])
   @@map("sandboxes")
@@ -40,4 +42,127 @@ model OutboxEvent {
 
   @@index([processedAt, failedAt, dueAt])
   @@map("outbox_events")
+}
+
+enum Role {
+  user
+  admin
+}
+
+/// An account. One account can hire (client profile), work (freelancer profile) or both; which side the
+/// interface shows is only a view, every authorization checks who owns the resource.
+model User {
+  id                String             @id @db.Uuid
+  /// Trimmed and lower-cased. Never sent to anyone but its owner.
+  email             String             @unique @db.VarChar(254)
+  name              String             @db.VarChar(60)
+  /// Argon2id. Null: can't sign in with a password (seeded people, demo personas).
+  passwordHash      String?
+  role              Role               @default(user)
+  emailVerifiedAt   DateTime?          @db.Timestamptz(3)
+  sandboxId         String?            @db.Uuid
+  sandbox           Sandbox?           @relation(fields: [sandboxId], references: [id], onDelete: Cascade)
+  /// Set by moderation: can't sign in, and disappears from every listing.
+  suspendedAt       DateTime?          @db.Timestamptz(3)
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  sessions          Session[]
+  emailTokens       EmailToken[]
+  clientProfile     ClientProfile?
+  freelancerProfile FreelancerProfile?
+
+  @@index([sandboxId])
+  @@map("users")
+}
+
+/// A signed-in browser. The cookie holds a random token; only its SHA-256 is stored.
+model Session {
+  id        String   @id @db.Uuid
+  tokenHash Bytes    @unique
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+enum EmailTokenPurpose {
+  verify_email
+  reset_password
+}
+
+/// A link sent by email (verify the address, reset the password). Stored as SHA-256, used once.
+model EmailToken {
+  id        String            @id @db.Uuid
+  tokenHash Bytes             @unique
+  userId    String            @db.Uuid
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   EmailTokenPurpose
+  expiresAt DateTime          @db.Timestamptz(3)
+  usedAt    DateTime?         @db.Timestamptz(3)
+  createdAt DateTime          @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, purpose])
+  @@map("email_tokens")
+}
+
+/// Emails kept instead of (or as well as) sent: every email when no SMTP server is configured, and
+/// always for demo accounts, whose visitors read them in the app's "sent emails" box.
+model SentEmail {
+  id        String   @id @db.Uuid
+  sandboxId String?  @db.Uuid
+  sandbox   Sandbox? @relation(fields: [sandboxId], references: [id], onDelete: Cascade)
+  userId    String?  @db.Uuid
+  to        String   @db.VarChar(254)
+  kind      String   @db.VarChar(60)
+  subject   String
+  text      String
+  html      String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([sandboxId, createdAt])
+  @@index([userId, createdAt])
+  @@map("sent_emails")
+}
+
+/// The hiring side of an account.
+model ClientProfile {
+  userId    String    @id @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Copied from the user: everything a person writes carries its sandbox.
+  sandboxId String?   @db.Uuid
+  company   String?   @db.VarChar(80)
+  about     String?
+  city      String?   @db.VarChar(60)
+  state     String?   @db.Char(2)
+  /// Set by moderation: gone from listings and pages (its owner still sees it).
+  hiddenAt  DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([sandboxId])
+  @@map("client_profiles")
+}
+
+/// The working side of an account.
+model FreelancerProfile {
+  userId         String    @id @db.Uuid
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sandboxId      String?   @db.Uuid
+  headline       String    @db.VarChar(80)
+  bio            String
+  category       String    @db.VarChar(40)
+  skills         String[]
+  /// Smallest project budget they take, in centavos.
+  minBudgetCents BigInt
+  available      Boolean   @default(true)
+  city           String?   @db.VarChar(60)
+  state          String?   @db.Char(2)
+  hiddenAt       DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([sandboxId])
+  @@map("freelancer_profiles")
 }

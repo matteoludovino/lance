@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import cookie from "@fastify/cookie";
 import { ConsoleLogger, type LogLevel } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
@@ -17,6 +18,7 @@ export async function createApp(
     new FastifyAdapter({ trustProxy: env.TRUST_PROXY, bodyLimit: 256 * 1024 }),
     { logger: logger ? appLogger(env) : false },
   );
+  await app.register(cookie);
   app.setGlobalPrefix("api");
   app.useGlobalFilters(new ErrorsFilter());
   app.enableShutdownHooks();
