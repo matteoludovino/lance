@@ -1,0 +1,10 @@
+// Models arrive stage by stage; hand-written SQL (triggers, constraints, full-text) lives in the migrations.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
