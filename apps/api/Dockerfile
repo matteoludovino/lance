@@ -23,6 +23,7 @@ COPY apps/api/package.json apps/api/
 # that `migrate deploy` uses.
 RUN npm ci --workspace @lance/api --include-workspace-root=false --omit=dev --ignore-scripts \
   && npm rebuild @prisma/engines prisma \
+  && mkdir -p apps/api/node_modules \
   && npm cache clean --force
 
 FROM node:22-alpine
@@ -30,6 +31,8 @@ ENV NODE_ENV=production
 WORKDIR /repo
 COPY --from=deps /repo/node_modules node_modules
 WORKDIR /repo/apps/api
+# npm can place a workspace's dependency under the workspace instead of the root.
+COPY --from=deps /repo/apps/api/node_modules node_modules
 COPY apps/api/package.json apps/api/prisma.config.ts ./
 COPY apps/api/prisma prisma
 COPY --from=build /repo/apps/api/dist dist
