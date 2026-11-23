@@ -54,6 +54,14 @@ describe("profiles", () => {
     ]);
   });
 
+  it("tells the web app who is signed in, without an error for visitors", async () => {
+    const visitor = await new Browser(app).get("/api/session");
+    expect(visitor.statusCode).toBe(200);
+    expect(visitor.json()).toEqual({ me: null });
+    const { browser, me } = await verifiedUser(app);
+    expect((await browser.get("/api/session")).json()).toEqual({ me });
+  });
+
   it("needs a session to edit", async () => {
     expect((await new Browser(app).put("/api/me/client-profile", {})).statusCode).toBe(401);
   });
