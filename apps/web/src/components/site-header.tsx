@@ -34,7 +34,7 @@ export function SiteHeader() {
 
   return (
     <header className="border-b border-stone-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 px-4 py-2 sm:h-14 sm:flex-nowrap sm:py-0">
         <Link href={me ? "/painel" : "/"} className="text-lg font-semibold tracking-tight">
           Lance
         </Link>
@@ -53,11 +53,20 @@ export function SiteHeader() {
             ))}
           </div>
         ) : null}
-        <Link href="/projetos" className="text-sm text-stone-700 hover:text-stone-900">
-          Projetos
-        </Link>
-        {me ? <MessagesLink /> : null}
-        <nav className="ml-auto flex items-center gap-2">
+        {/* On phones the page links take a row of their own, under the logo and the account buttons. */}
+        <nav
+          aria-label="Principal"
+          className="order-last flex basis-full items-center gap-4 pt-1 pb-1 sm:order-none sm:basis-auto sm:p-0"
+        >
+          <Link href="/projetos" className="text-sm text-stone-700 hover:text-stone-900">
+            Projetos
+          </Link>
+          <Link href="/freelancers" className="text-sm text-stone-700 hover:text-stone-900">
+            Freelancers
+          </Link>
+          {me ? <MessagesLink /> : null}
+        </nav>
+        <nav aria-label="Conta" className="ml-auto flex items-center gap-2">
           {isPending ? null : me ? (
             <>
               <Link

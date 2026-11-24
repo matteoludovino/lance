@@ -1,14 +1,29 @@
-import { CATEGORIES, SKILLS, categoryLabel, skillLabel, type Page, type ProjectSummary } from "@lance/shared";
+import { PROJECT_SORT_LABELS, projectFilters, type ProjectResults } from "@lance/shared";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { ProjectCard } from "@/components/project-card";
 import { Unavailable } from "@/components/profile-page";
+import { FiltersPanel, SearchForm } from "@/components/search/search-form";
+import {
+  ApplyButton,
+  CategoryFilter,
+  EmptyResults,
+  Field,
+  InvalidFilters,
+  Pager,
+  ResultCount,
+  ResultsSkeleton,
+  SearchBar,
+  SkillFilter,
+  asObject,
+  control,
+  pick,
+} from "@/components/search/filters";
 import { serverGet } from "@/lib/server-api";
 
 export const metadata: Metadata = { title: "Projetos" };
 
-type Search = PageProps<"/projetos">["searchParams"];
+const NAMES = ["q", "category", "skills", "minBudget", "maxBudget", "sort", "cursor"] as const;
 
 export default function ProjectsPage({ searchParams }: PageProps<"/projetos">) {
   return (
@@ -19,110 +34,75 @@ export default function ProjectsPage({ searchParams }: PageProps<"/projetos">) {
           Escolha um projeto, proponha um preço dividido em etapas e combine com o cliente.
         </p>
       </div>
-      <Suspense fallback={<ListSkeleton />}>
+      <Suspense fallback={<ResultsSkeleton />}>
         <Projects searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-function one(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-async function Projects({ searchParams }: { searchParams: Search }) {
-  const params = await searchParams;
-  const category = one(params.category);
-  const skill = one(params.skill);
-  const cursor = one(params.cursor);
-  const query = new URLSearchParams();
-  if (category) query.set("category", category);
-  if (skill) query.set("skill", skill);
-  if (cursor) query.set("cursor", cursor);
-  const result = await serverGet<Page<ProjectSummary>>(`/projects?${query}`);
+async function Projects({ searchParams }: { searchParams: PageProps<"/projetos">["searchParams"] }) {
+  const query = pick(await searchParams, NAMES);
+  const parsed = projectFilters.safeParse(asObject(query));
+  if (!parsed.success) return <InvalidFilters clear="/projetos" />;
+  const filters = parsed.data;
+  const result = await serverGet<ProjectResults>(`/projects?${query}`);
   if (result.status !== "ok") return <Unavailable />;
-  const { items, next } = result.data;
-  const nextQuery = new URLSearchParams(query);
-  if (next) nextQuery.set("cursor", next);
+  const { items, next, total, facets } = result.data;
+  const active =
+    (filters.category ? 1 : 0) +
+    filters.skills.length +
+    (filters.minBudget !== undefined ? 1 : 0) +
+    (filters.maxBudget !== undefined ? 1 : 0);
 
   return (
-    <div className="grid gap-6 md:grid-cols-[14rem_1fr] md:items-start">
-      <Filters category={category} skill={skill} />
-      <section aria-label="Projetos" className="grid gap-4">
+    <div className="grid gap-6 md:grid-cols-[15rem_1fr] md:items-start">
+      <SearchForm action="/projetos" key={query.toString()}>
+        <SearchBar
+          q={filters.q}
+          placeholder="Busque por palavras: loja virtual, logotipo, power bi…"
+          sort={filters.sort}
+          sorts={PROJECT_SORT_LABELS}
+        />
+        <FiltersPanel active={active}>
+          <CategoryFilter value={filters.category} facets={facets.categories} />
+          <SkillFilter selected={filters.skills} facets={facets.skills} />
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Paga ao menos (R$)">
+              <input
+                type="number"
+                name="minBudget"
+                min={0}
+                step={100}
+                inputMode="numeric"
+                defaultValue={filters.minBudget}
+                className={control}
+              />
+            </Field>
+            <Field label="Começa até (R$)">
+              <input
+                type="number"
+                name="maxBudget"
+                min={0}
+                step={100}
+                inputMode="numeric"
+                defaultValue={filters.maxBudget}
+                className={control}
+              />
+            </Field>
+          </div>
+          <ApplyButton clear="/projetos" />
+        </FiltersPanel>
+      </SearchForm>
+      <section aria-label="Resultados" className="grid content-start gap-4">
+        <ResultCount total={total} one="projeto aberto" many="projetos abertos" q={filters.q} />
         {items.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-stone-300 p-8 text-center text-stone-600">
-            Nenhum projeto aberto com esses filtros agora.
-          </p>
+          <EmptyResults clear="/projetos" />
         ) : (
           items.map((project) => <ProjectCard key={project.id} project={project} />)
         )}
-        <nav className="flex gap-3" aria-label="Páginas">
-          {cursor ? (
-            <Link
-              href={`/projetos?${new URLSearchParams({ ...(category && { category }), ...(skill && { skill }) })}`}
-              className="text-sm font-medium text-indigo-700 hover:underline"
-            >
-              ← Voltar ao início
-            </Link>
-          ) : null}
-          {next ? (
-            <Link
-              href={`/projetos?${nextQuery}`}
-              className="text-sm font-medium text-indigo-700 hover:underline"
-            >
-              Mais projetos →
-            </Link>
-          ) : null}
-        </nav>
+        <Pager base="/projetos" query={query} next={next} />
       </section>
-    </div>
-  );
-}
-
-/** A plain GET form: filters are in the address, so a filtered list can be shared and reloaded. */
-function Filters({ category, skill }: { category?: string; skill?: string }) {
-  const select =
-    "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/20 focus:outline-none";
-  return (
-    <form
-      action="/projetos"
-      className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
-    >
-      <label className="grid gap-1.5 text-sm font-medium text-stone-800">
-        Categoria
-        <select name="category" defaultValue={category ?? ""} className={select}>
-          <option value="">Todas</option>
-          {CATEGORIES.map((option) => (
-            <option key={option.slug} value={option.slug}>
-              {categoryLabel(option.slug)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="grid gap-1.5 text-sm font-medium text-stone-800">
-        Habilidade
-        <select name="skill" defaultValue={skill ?? ""} className={select}>
-          <option value="">Todas</option>
-          {SKILLS.map((option) => (
-            <option key={option.slug} value={option.slug}>
-              {skillLabel(option.slug)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button className="rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-700">
-        Filtrar
-      </button>
-    </form>
-  );
-}
-
-function ListSkeleton() {
-  return (
-    <div aria-busy className="grid gap-4">
-      {[0, 1, 2].map((n) => (
-        <div key={n} className="h-36 animate-pulse rounded-2xl bg-stone-200/70" />
-      ))}
     </div>
   );
 }
