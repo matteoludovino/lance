@@ -11,9 +11,12 @@ import { uuidv7 } from "../common/ids.ts";
 import { isUniqueViolation, transaction } from "../common/transactions.ts";
 import type { Message, Prisma } from "../generated/prisma/client.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
+import { reportFlaggedMessage } from "../moderation/reports.service.ts";
 import { Hub } from "../realtime/hub.ts";
+import { Scheduler } from "../scheduler/scheduler.service.ts";
 import { visibleTo } from "../sandbox/scope.ts";
 import { Clock } from "../time/clock.ts";
+import { queueDigest } from "./digests.ts";
 
 const PAGE = 50;
 const NOT_FOUND = { code: "not_found", message: "Conversa não encontrada." };
@@ -37,6 +40,7 @@ export class Conversations {
     private readonly db: PrismaService,
     private readonly hub: Hub,
     private readonly clock: Clock,
+    private readonly scheduler: Scheduler,
   ) {}
 
   async list(user: AuthUser): Promise<ConversationSummary[]> {
@@ -123,7 +127,7 @@ export class Conversations {
                 "freelancerReadSeq" = "lastSeq" + 1
               WHERE id = ${id}::uuid RETURNING "lastSeq" AS seq`;
         fresh = true;
-        return tx.message.create({
+        const created = await tx.message.create({
           data: {
             id: uuidv7(now.getTime()),
             conversationId: id,
@@ -135,7 +139,16 @@ export class Conversations {
             createdAt: now,
           },
         });
+        if (flags.length > 0) await reportFlaggedMessage(tx, created, row.sandboxId);
+        await queueDigest(tx, {
+          userId: isClient ? row.freelancerId : row.clientId,
+          conversationId: id,
+          sandboxId: row.sandboxId,
+          now,
+        });
+        return created;
       });
+      this.scheduler.kick();
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       // The same message sent twice at once: the other request wrote it.

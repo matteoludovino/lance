@@ -74,6 +74,14 @@ export class Scheduler implements OnApplicationBootstrap, OnApplicationShutdown 
   /** Runs every sweep until nothing is due (tests call this directly, with the scheduler off). */
   async runOnce(): Promise<number> {
     let handled = 0;
+    // Passes until one finds nothing: a sweep can make work for another (a due digest becomes an
+    // outbox event).
+    for (let pass = await this.pass(); pass > 0; pass = await this.pass()) handled += pass;
+    return handled;
+  }
+
+  private async pass(): Promise<number> {
+    let handled = 0;
     for (const sweep of this.sweeps) {
       try {
         for (
