@@ -40,13 +40,17 @@ export interface ContractReviews {
   theirsWaiting: boolean;
 }
 
+/** Weight of the Bayesian prior: every person starts with this many imaginary reviews at the mean. */
+export const BAYESIAN_WEIGHT = 5;
+
 /**
  * Ranking by rating without rewarding a lucky few: every person starts with `weight` imaginary reviews
- * at the marketplace's mean, so one 5-star review doesn't beat fifty 4.8s.
+ * at the marketplace's mean, so one 5-star review doesn't beat fifty 4.8s. (Search computes the same in
+ * SQL; its tests hold the two together.)
  */
 export function bayesian(
   { count, average }: Reputation,
-  { mean, weight = 5 }: { mean: number; weight?: number },
+  { mean, weight = BAYESIAN_WEIGHT }: { mean: number; weight?: number },
 ): number {
   return (weight * mean + count * (average ?? 0)) / (weight + count);
 }

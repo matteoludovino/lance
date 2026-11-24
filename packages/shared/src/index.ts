@@ -11,3 +11,4 @@ export * from "./money";
 export * from "./profiles";
 export * from "./projects";
 export * from "./reviews";
+export * from "./search";

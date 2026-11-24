@@ -46,12 +46,6 @@ export type ProposalInput = z.input<typeof proposalInput>;
 /** Accepting names the version the client looked at: if the freelancer changed it since, 409. */
 export const acceptInput = z.object({ version: z.number().int().positive() });
 
-export const projectFilters = z.object({
-  category: z.enum(CATEGORY_SLUGS).optional(),
-  skill: z.enum(SKILL_SLUGS).optional(),
-  cursor: z.string().max(200).optional(),
-});
-
 export type ProjectStatus = "draft" | "open" | "in_progress" | "completed" | "cancelled";
 export type ProposalStatus = "submitted" | "withdrawn" | "declined" | "accepted";
 
