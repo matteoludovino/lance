@@ -1,4 +1,4 @@
-import type { PublicClient } from "@lance/shared";
+import type { Page, PublicClient, ReviewView } from "@lance/shared";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -10,6 +10,8 @@ import {
   memberSince,
   place,
 } from "@/components/profile-page";
+import { ReviewList } from "@/components/review-list";
+import { ReputationLine } from "@/components/stars";
 import { serverGet } from "@/lib/server-api";
 
 export const metadata: Metadata = { title: "Cliente" };
@@ -26,7 +28,10 @@ export default function ClientPage({ params }: PageProps<"/clientes/[id]">) {
 
 async function Client({ params }: { params: PageProps<"/clientes/[id]">["params"] }) {
   const { id } = await params;
-  const result = await serverGet<PublicClient>(`/clients/${encodeURIComponent(id)}`);
+  const [result, reviews] = await Promise.all([
+    serverGet<PublicClient>(`/clients/${encodeURIComponent(id)}`),
+    serverGet<Page<ReviewView>>(`/clients/${encodeURIComponent(id)}/reviews`),
+  ]);
   if (result.status === "not_found") notFound();
   if (result.status === "unavailable") return <Unavailable />;
   const profile = result.data;
@@ -42,6 +47,15 @@ async function Client({ params }: { params: PageProps<"/clientes/[id]">["params"
           <p className="leading-relaxed whitespace-pre-line text-stone-800">{profile.about}</p>
         </Section>
       ) : null}
+      <Section title="Avaliações">
+        <p className="text-sm">
+          <ReputationLine reputation={profile.reputation} />
+        </p>
+        <ReviewList
+          reviews={reviews.status === "ok" ? reviews.data.items : []}
+          empty="Nenhum freelancer avaliou este cliente ainda."
+        />
+      </Section>
     </article>
   );
 }

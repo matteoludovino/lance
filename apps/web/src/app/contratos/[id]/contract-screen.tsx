@@ -17,6 +17,7 @@ import { TextArea } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { api, ApiFailure } from "@/lib/api";
 import { dateTime, inTime, money, plural } from "@/lib/format";
+import { ReviewSection } from "./review-section";
 
 export function ContractScreen({ id }: { id: string }) {
   return <RequireSession>{() => <Contract id={id} />}</RequireSession>;
@@ -99,6 +100,8 @@ function Contract({ id }: { id: string }) {
         {plural(Math.round(contract.autoReleaseHours / 24), "dia", "dias")} depois dela. O Lance retém{" "}
         {contract.feeBps / 100}% de cada etapa paga.
       </Notice>
+
+      {contract.status === "completed" ? <ReviewSection contract={contract} /> : null}
 
       <section aria-labelledby="milestones-heading" className="grid gap-4">
         <h2 id="milestones-heading" className="text-sm font-semibold tracking-wide text-stone-500 uppercase">

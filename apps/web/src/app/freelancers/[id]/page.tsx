@@ -1,4 +1,4 @@
-import { categoryLabel, skillLabel, type PublicFreelancer } from "@lance/shared";
+import { categoryLabel, skillLabel, type PublicFreelancer, type Page, type ReviewView } from "@lance/shared";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -12,6 +12,8 @@ import {
   place,
 } from "@/components/profile-page";
 import { InviteButton } from "@/components/invite-button";
+import { ReviewList } from "@/components/review-list";
+import { ReputationLine } from "@/components/stars";
 import { serverGet } from "@/lib/server-api";
 
 export const metadata: Metadata = { title: "Freelancer" };
@@ -28,7 +30,10 @@ export default function FreelancerPage({ params }: PageProps<"/freelancers/[id]"
 
 async function Freelancer({ params }: { params: PageProps<"/freelancers/[id]">["params"] }) {
   const { id } = await params;
-  const result = await serverGet<PublicFreelancer>(`/freelancers/${encodeURIComponent(id)}`);
+  const [result, reviews] = await Promise.all([
+    serverGet<PublicFreelancer>(`/freelancers/${encodeURIComponent(id)}`),
+    serverGet<Page<ReviewView>>(`/freelancers/${encodeURIComponent(id)}/reviews`),
+  ]);
   if (result.status === "not_found") notFound();
   if (result.status === "unavailable") return <Unavailable />;
   const profile = result.data;
@@ -65,6 +70,15 @@ async function Freelancer({ params }: { params: PageProps<"/freelancers/[id]">["
             </li>
           ))}
         </ul>
+      </Section>
+      <Section title="Avaliações">
+        <p className="text-sm">
+          <ReputationLine reputation={profile.reputation} />
+        </p>
+        <ReviewList
+          reviews={reviews.status === "ok" ? reviews.data.items : []}
+          empty="Ninguém avaliou este freelancer ainda."
+        />
       </Section>
     </article>
   );
