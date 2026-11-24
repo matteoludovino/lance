@@ -18,3 +18,9 @@ services:
         sync: false # the Vercel URL (Origin checks)
       - key: TRUST_PROXY
         value: "true" # behind Render's proxy and the web app's rewrite: real client addresses for limits
+      - key: WEB_URL
+        sync: false # the Vercel URL, for links in emails
+      - key: PUBLIC_WS_URL
+        sync: false # wss://<this service>.onrender.com/ws (browsers open the socket straight here)
+      - key: SMTP_URL
+        sync: false # optional: without it, emails are kept in the database (sent_emails)

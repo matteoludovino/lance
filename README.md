@@ -21,6 +21,9 @@ when each delivery is approved, both sides review each other, and they talk in r
   starts; the money waits in escrow until the client approves the delivery (or asks for a revision, at
   most twice, or disputes it). A delivery the client lets sit for 7 days pays itself. Disputes go to an
   admin, who releases or refunds. The freelancer's wallet shows what they received, minus the 10% fee.
+- **Messages in real time.** Client and freelancer talk about a project from the first proposal (or
+  a client's invitation): live delivery, "typing…", unread counts and read receipts. Before a contract,
+  contact details (phone, email, WhatsApp…) get a warning about leaving the platform's protection.
 - **Seeded marketplace.** Twelve freelancers, five clients and eight open projects, fictional, so the
   market isn't empty.
 
@@ -57,6 +60,11 @@ A few rules every later feature builds on:
   milestone action locks the contract first and posts in the same transaction. A reconciliation query
   checks it all against the milestones' states; a property test runs random concurrent action
   sequences and requires it to come back empty. Money-moving requests take an `Idempotency-Key`.
+- **Real time with writes over REST.** Messages are written over REST: the conversation's counter
+  numbers them with no gaps (its row lock orders senders), and the browser's id makes a resend
+  harmless. Only after commit are they pushed over a WebSocket that never takes writes (except
+  "typing"). The socket opens with a one-time ticket from the same-origin API, because in production it
+  goes straight to the API's host; every reconnection refetches what may have been missed.
 - **Time** comes from an injectable clock, and side effects (email, and later delayed rules) go through
   a transactional outbox drained by a scheduler inside the API: no external queue for a free-plan
   server that sleeps.
@@ -88,7 +96,7 @@ npm run dev                        # API on :8040, web on http://localhost:3030
 2. ✅ Accounts, sessions, email verification, client and freelancer profiles, demo sandboxing
 3. ✅ Projects and proposals
 4. ✅ Contracts, milestones and the simulated escrow ledger
-5. Real-time messaging
+5. ✅ Real-time messaging
 6. Double-blind reviews and reputation
 7. Search in Portuguese (full text, filters, facets)
 8. Moderation and email notifications
