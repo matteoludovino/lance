@@ -17,6 +17,10 @@ when each delivery is approved, both sides review each other, and they talk in r
 - **Projects and proposals.** Clients publish fixed-price projects with a budget range; freelancers
   answer with a proposal split into milestones (its price is their sum), and can change or withdraw it
   while it's open. The client compares them and hires one, which creates the contract.
+- **Contracts paid by milestone (simulated escrow).** The client deposits each milestone before it
+  starts; the money waits in escrow until the client approves the delivery (or asks for a revision, at
+  most twice, or disputes it). A delivery the client lets sit for 7 days pays itself. Disputes go to an
+  admin, who releases or refunds. The freelancer's wallet shows what they received, minus the 10% fee.
 - **Seeded marketplace.** Twelve freelancers, five clients and eight open projects, fictional, so the
   market isn't empty.
 
@@ -46,6 +50,13 @@ A few rules every later feature builds on:
   someone got there first, a 409). Hiring is one transaction that locks the project, accepts the proposal
   at the version the client saw, declines the rest and creates the contract; one contract per project is
   also a unique index. Tests race two acceptances, and acceptance against withdrawal.
+- **The ledger** is double-entry, in integer centavos, and the database enforces it: entries add up to
+  zero per transaction (a deferred constraint trigger, checked at commit), are append-only, keep each
+  account's cached balance by trigger, never take an account below zero (except the outside world),
+  and never cross sandboxes; a unique index allows one fund, release or refund per milestone. Every
+  milestone action locks the contract first and posts in the same transaction. A reconciliation query
+  checks it all against the milestones' states; a property test runs random concurrent action
+  sequences and requires it to come back empty. Money-moving requests take an `Idempotency-Key`.
 - **Time** comes from an injectable clock, and side effects (email, and later delayed rules) go through
   a transactional outbox drained by a scheduler inside the API: no external queue for a free-plan
   server that sleeps.
@@ -76,7 +87,7 @@ npm run dev                        # API on :8040, web on http://localhost:3030
 1. ✅ Monorepo, NestJS API, Next.js web, CI (minimal deploy pending)
 2. ✅ Accounts, sessions, email verification, client and freelancer profiles, demo sandboxing
 3. ✅ Projects and proposals
-4. Contracts, milestones and the simulated escrow ledger
+4. ✅ Contracts, milestones and the simulated escrow ledger
 5. Real-time messaging
 6. Double-blind reviews and reputation
 7. Search in Portuguese (full text, filters, facets)
