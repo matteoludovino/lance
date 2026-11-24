@@ -1,20 +1,24 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import type { Page, ProjectDetail, ProjectInput, ProjectSummary } from "@lance/shared";
-import type { z } from "zod";
-import type { projectFilters } from "@lance/shared";
+import type {
+  ProjectDetail,
+  ProjectFilters,
+  ProjectInput,
+  ProjectResults,
+  ProjectSummary,
+} from "@lance/shared";
 import type { AuthUser } from "../auth/auth-user.ts";
 import { uuidv7 } from "../common/ids.ts";
 import { expectChanged, transaction } from "../common/transactions.ts";
 import type { Prisma } from "../generated/prisma/client.ts";
 import { OutboxService, type Tx } from "../outbox/outbox.service.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
+import { searchProjects } from "../search/projects.ts";
 import { visibleTo } from "../sandbox/scope.ts";
 import { Clock } from "../time/clock.ts";
 import { MARKET_EVENTS } from "./marketplace-emails.ts";
 import { projectDetail, projectInclude, projectSummary, proposalInclude, proposalView } from "./views.ts";
 
 type Parsed<T> = { [K in keyof T]-?: Exclude<T[K], undefined> };
-const PAGE_SIZE = 20;
 
 export const NOT_FOUND = { code: "not_found", message: "Projeto não encontrado." };
 
@@ -115,42 +119,18 @@ export class Projects {
     }
   }
 
-  /** Open projects, newest first, as the viewer's view of the marketplace has them. */
-  async list(
-    viewer: AuthUser | null,
-    filters: z.infer<typeof projectFilters>,
-  ): Promise<Page<ProjectSummary>> {
-    const after = decodeCursor(filters.cursor);
-    const rows = await this.db.project.findMany({
-      where: {
-        AND: [
-          { status: "open", hiddenAt: null, client: { suspendedAt: null } },
-          visibleTo(viewer),
-          filters.category ? { category: filters.category } : {},
-          filters.skill ? { skills: { has: filters.skill } } : {},
-          after
-            ? {
-                OR: [
-                  { publishedAt: { lt: after.publishedAt } },
-                  { publishedAt: after.publishedAt, id: { lt: after.id } },
-                ],
-              }
-            : {},
-        ],
-      },
-      include: projectInclude,
-      orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
-      take: PAGE_SIZE + 1,
-    });
-    const page = rows.slice(0, PAGE_SIZE);
-    const counts = await this.pendingCounts(
-      viewer,
-      page.map((p) => p.id),
-    );
-    const last = page.at(-1);
+  /** Open projects as the viewer's view of the marketplace has them: searched, filtered, faceted. */
+  async list(viewer: AuthUser | null, filters: ProjectFilters): Promise<ProjectResults> {
+    const { ids, ...hits } = await searchProjects(this.db, viewer, filters);
+    const rows = await this.db.project.findMany({ where: { id: { in: ids } }, include: projectInclude });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const counts = await this.pendingCounts(viewer, ids);
     return {
-      items: page.map((project) => projectSummary(project, counts.get(project.id) ?? 0)),
-      next: rows.length > PAGE_SIZE && last ? encodeCursor(last.publishedAt!, last.id) : null,
+      ...hits,
+      items: ids.flatMap((id) => {
+        const project = byId.get(id);
+        return project ? [projectSummary(project, counts.get(id) ?? 0)] : [];
+      }),
     };
   }
 
@@ -232,16 +212,4 @@ export class Projects {
       budgetMaxCents: BigInt(input.budgetMaxCents),
     };
   }
-}
-
-function encodeCursor(publishedAt: Date, id: string): string {
-  return Buffer.from(`${publishedAt.toISOString()}|${id}`).toString("base64url");
-}
-
-function decodeCursor(cursor: string | undefined): { publishedAt: Date; id: string } | null {
-  if (!cursor) return null;
-  const [iso, id] = Buffer.from(cursor, "base64url").toString().split("|");
-  const publishedAt = new Date(iso ?? "");
-  if (Number.isNaN(publishedAt.getTime()) || !id || !/^[0-9a-f-]{36}$/.test(id)) return null;
-  return { publishedAt, id };
 }

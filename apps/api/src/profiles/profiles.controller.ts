@@ -1,7 +1,10 @@
-import { Body, Controller, Get, Param, Patch, Put } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Put, Query } from "@nestjs/common";
 import {
   clientProfileInput,
+  freelancerFilters,
   freelancerProfileInput,
+  type FreelancerFilters,
+  type FreelancerResults,
   updateAccountInput,
   type Me,
   type PublicClient,
@@ -53,6 +56,15 @@ export class ProfilesController {
     @Body(new ZodPipe(freelancerProfileInput)) body: z.infer<typeof freelancerProfileInput>,
   ): Promise<Me> {
     return this.profiles.putFreelancer(user, body);
+  }
+
+  @Public()
+  @Get("freelancers")
+  search(
+    @Viewer() viewer: AuthUser | null,
+    @Query(new ZodPipe(freelancerFilters)) filters: FreelancerFilters,
+  ): Promise<FreelancerResults> {
+    return this.profiles.search(viewer, filters);
   }
 
   @Public()

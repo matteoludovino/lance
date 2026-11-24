@@ -3,14 +3,17 @@ import type {
   ClientProfile as ClientProfileView,
   ClientProfileInput,
   FreelancerProfile as FreelancerProfileView,
+  FreelancerFilters,
   FreelancerProfileInput,
+  FreelancerResults,
   Me,
   PublicClient,
   PublicFreelancer,
 } from "@lance/shared";
 import type { ClientProfile, FreelancerProfile } from "../generated/prisma/client.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
-import { reputations } from "../reviews/reputation.ts";
+import { reputation, reputations } from "../reviews/reputation.ts";
+import { searchFreelancers } from "../search/freelancers.ts";
 import { visibleTo } from "../sandbox/scope.ts";
 import { Clock } from "../time/clock.ts";
 import type { AuthUser } from "../auth/auth-user.ts";
@@ -80,6 +83,27 @@ export class Profiles {
       memberSince: profile.user.createdAt.toISOString(),
       ...freelancerView(profile),
       reputation: reputation.get(id)!,
+    };
+  }
+
+  /** Freelancers matching the filters, best first, as cards (no long text). */
+  async search(viewer: AuthUser | null, filters: FreelancerFilters): Promise<FreelancerResults> {
+    const { hits, ...results } = await searchFreelancers(this.db, viewer, filters, this.clock.now());
+    const profiles = await this.db.freelancerProfile.findMany({
+      where: { userId: { in: hits.map((hit) => hit.id) } },
+      include: { user: true },
+    });
+    const byId = new Map(profiles.map((profile) => [profile.userId, profile]));
+    return {
+      ...results,
+      items: hits.flatMap((hit) => {
+        const profile = byId.get(hit.id);
+        if (!profile) return [];
+        const { bio: _bio, ...card } = freelancerView(profile);
+        return [
+          { id: hit.id, name: profile.user.name, ...card, reputation: reputation(hit.reviews, hit.average) },
+        ];
+      }),
     };
   }
 

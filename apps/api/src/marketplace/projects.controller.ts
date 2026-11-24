@@ -5,9 +5,9 @@ import {
   projectInput,
   proposalInput,
   type MyProposal,
-  type Page,
   type ProjectDetail,
   type ProjectSummary,
+  type ProjectResults,
   type ProposalView,
 } from "@lance/shared";
 import type { z } from "zod";
@@ -31,7 +31,7 @@ export class ProjectsController {
   list(
     @Viewer() viewer: AuthUser | null,
     @Query(new ZodPipe(projectFilters)) filters: z.infer<typeof projectFilters>,
-  ): Promise<Page<ProjectSummary>> {
+  ): Promise<ProjectResults> {
     return this.projects.list(viewer, filters);
   }
 

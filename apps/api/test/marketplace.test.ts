@@ -89,8 +89,8 @@ describe("projects", () => {
     expect(ids.slice(-3)).toContain(expected[0]);
 
     expect(await list(visitor, "?category=design")).toEqual([ids[7]]);
-    expect(await list(visitor, "?skill=figma")).toEqual([ids[7]]);
-    expect((await visitor.get("/api/projects?skill=cobol")).statusCode).toBe(400);
+    expect(await list(visitor, "?skills=figma")).toEqual([ids[7]]);
+    expect((await visitor.get("/api/projects?skills=cobol")).statusCode).toBe(400);
   });
 });
 
