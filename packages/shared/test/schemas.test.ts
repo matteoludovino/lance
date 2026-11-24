@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CATEGORY_SLUGS,
   SKILLS,
+  bayesian,
   formatBRL,
   freelancerProfileInput,
   parseBRL,
@@ -102,5 +103,16 @@ describe("project and proposal input", () => {
     });
     expect(proposalPrice(proposal.milestones)).toBe(450_050);
     expect(proposalInput.safeParse({ ...proposal, milestones: [] }).success).toBe(false);
+  });
+});
+
+describe("bayesian ranking", () => {
+  it("doesn't let one perfect review beat many very good ones", () => {
+    const mean = 4.2;
+    const lucky = bayesian({ count: 1, average: 5 }, { mean });
+    const steady = bayesian({ count: 50, average: 4.8 }, { mean });
+    expect(steady).toBeGreaterThan(lucky);
+    expect(bayesian({ count: 0, average: null }, { mean })).toBe(mean);
+    expect(bayesian({ count: 1000, average: 3 }, { mean })).toBeCloseTo(3, 1);
   });
 });

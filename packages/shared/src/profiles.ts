@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CATEGORY_SLUGS, SKILL_SLUGS, STATES } from "./catalog";
 import { cents } from "./money";
+import type { Reputation } from "./reviews";
 
 const optionalText = (max: number) =>
   z
@@ -78,10 +79,12 @@ export interface PublicFreelancer extends FreelancerProfile {
   id: string;
   name: string;
   memberSince: string;
+  reputation: Reputation;
 }
 
 export interface PublicClient extends ClientProfile {
   id: string;
   name: string;
   memberSince: string;
+  reputation: Reputation;
 }

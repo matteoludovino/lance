@@ -10,3 +10,4 @@ export * from "./messages";
 export * from "./money";
 export * from "./profiles";
 export * from "./projects";
+export * from "./reviews";
