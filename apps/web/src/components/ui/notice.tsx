@@ -6,11 +6,14 @@ const tones = {
   info: "border-indigo-200 bg-indigo-50 text-indigo-900",
 };
 
-/** A message about the whole form or page. Errors interrupt screen readers; the rest wait their turn. */
+/**
+ * A message about the whole form or page. Errors interrupt screen readers and successes wait their turn;
+ * "info" is standing text, not news, so it isn't announced.
+ */
 export function Notice({ tone, children }: { tone: keyof typeof tones; children: ReactNode }) {
   return (
     <div
-      role={tone === "error" ? "alert" : "status"}
+      role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined}
       className={`rounded-lg border px-4 py-3 text-sm ${tones[tone]}`}
     >
       {children}

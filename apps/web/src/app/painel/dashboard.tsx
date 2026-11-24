@@ -5,6 +5,8 @@ import {
   PROPOSAL_STATUS_LABELS,
   categoryLabel,
   formatBRL,
+  CONTRACT_STATUS_LABELS,
+  type ContractSummary,
   type Me,
   type MyProposal,
   type ProjectSummary,
@@ -81,6 +83,9 @@ function ClientSide({ me }: { me: Me }) {
       <Card title="Seus projetos">
         <MyProjects />
       </Card>
+      <Card title="Contratos">
+        <MyContracts role="client" />
+      </Card>
     </div>
   );
 }
@@ -122,6 +127,12 @@ function FreelancerSide({ me }: { me: Me }) {
       </Card>
       <Card title="Suas propostas">
         <MyProposals />
+      </Card>
+      <Card title="Contratos">
+        <MyContracts role="freelancer" />
+        <ButtonLink href="/carteira" variant="secondary" className="justify-self-start">
+          Ver carteira
+        </ButtonLink>
       </Card>
     </div>
   );
@@ -212,6 +223,52 @@ function MyProposals() {
               <span className="text-sm text-stone-500">
                 {money(proposal.priceCents)} · {PROPOSAL_STATUS_LABELS[proposal.status]}
               </span>
+            </li>
+          ))}
+        </ul>
+      ) : undefined}
+    </ListState>
+  );
+}
+
+function MyContracts({ role }: { role: "client" | "freelancer" }) {
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["me", "contracts"],
+    queryFn: () => api<ContractSummary[]>("/me/contracts"),
+  });
+  if (isPending) return <div aria-busy className="h-16 animate-pulse rounded-lg bg-stone-100" />;
+  const mine = data?.filter((contract) => contract.role === role) ?? [];
+  return (
+    <ListState
+      error={isError}
+      empty={
+        <p>
+          {role === "client"
+            ? "Aceite uma proposta para começar um contrato."
+            : "Quando um cliente aceitar sua proposta, o contrato aparece aqui."}
+        </p>
+      }
+    >
+      {mine.length > 0 ? (
+        <ul className="grid divide-y divide-stone-100">
+          {mine.map((contract) => (
+            <li key={contract.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+              <span>
+                <Link href={`/contratos/${contract.id}`} className="font-medium hover:text-indigo-700">
+                  {contract.project.title}
+                </Link>
+                <span className="block text-sm text-stone-500">
+                  com {contract.other.name} · {money(contract.releasedCents)} de {money(contract.priceCents)}{" "}
+                  pagos
+                </span>
+              </span>
+              {contract.waitingOnYou > 0 ? (
+                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-sm font-medium text-amber-900">
+                  {plural(contract.waitingOnYou, "etapa espera você", "etapas esperam você")}
+                </span>
+              ) : (
+                <span className="text-sm text-stone-500">{CONTRACT_STATUS_LABELS[contract.status]}</span>
+              )}
             </li>
           ))}
         </ul>

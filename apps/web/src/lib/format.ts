@@ -23,3 +23,33 @@ export function ago(iso: string, now = Date.now()): string {
 export function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
+
+const day = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
+const dayTime = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
+
+/** "24/11" */
+export function shortDate(iso: string): string {
+  return day.format(new Date(iso));
+}
+
+/** "24/11, 14:30" */
+export function dateTime(iso: string): string {
+  return dayTime.format(new Date(iso));
+}
+
+/** "em 3 dias", "amanhã", "hoje" for a time ahead. */
+export function inTime(iso: string, now = Date.now()): string {
+  const hours = (new Date(iso).getTime() - now) / 3_600_000;
+  if (hours < 24) return hours < 1 ? "em menos de 1 hora" : `em ${Math.floor(hours)} h`;
+  return relative.format(Math.round(hours / 24), "day");
+}

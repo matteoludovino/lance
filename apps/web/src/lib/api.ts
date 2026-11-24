@@ -14,12 +14,18 @@ export class ApiFailure extends Error {
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** JSON in, JSON out, through the web app's own /api (the server's cookie is first-party). */
-export async function api<T>(path: string, init: { method?: Method; body?: unknown } = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  init: { method?: Method; body?: unknown; headers?: Record<string, string> } = {},
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
       method: init.method ?? (init.body === undefined ? "GET" : "POST"),
-      headers: init.body === undefined ? undefined : { "content-type": "application/json" },
+      headers: {
+        ...(init.body === undefined ? {} : { "content-type": "application/json" }),
+        ...init.headers,
+      },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       cache: "no-store",
     });

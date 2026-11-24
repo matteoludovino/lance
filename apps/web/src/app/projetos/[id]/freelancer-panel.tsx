@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectDetail } from "@lance/shared";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ProposalForm } from "@/components/proposal-form";
@@ -70,7 +71,12 @@ export function FreelancerPanel({ project }: { project: ProjectDetail }) {
         ) : null}
         {proposal.status === "accepted" ? (
           <p className="text-sm text-emerald-800">
-            O cliente aceitou: o contrato foi criado com as suas etapas.
+            O cliente aceitou: o contrato foi criado com as suas etapas.{" "}
+            {project.contractId ? (
+              <Link href={`/contratos/${project.contractId}`} className="font-medium underline">
+                Ver contrato
+              </Link>
+            ) : null}
           </p>
         ) : null}
       </div>

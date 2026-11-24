@@ -100,6 +100,14 @@ function OwnerActions({ project }: { project: ProjectDetail }) {
               ? "Você aceitou uma proposta: o contrato foi criado."
               : "Este projeto foi encerrado."}
       </p>
+      {project.contractId ? (
+        <Link
+          href={`/contratos/${project.contractId}`}
+          className="font-medium text-indigo-700 hover:underline"
+        >
+          Ver contrato →
+        </Link>
+      ) : null}
     </div>
   );
 }
