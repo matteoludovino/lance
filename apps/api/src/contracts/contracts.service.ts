@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import {
+  type DisputeView,
   HELD,
   MAX_REVISIONS,
   type ContractSummary,
@@ -119,6 +120,34 @@ export class Contracts {
         contractId: entry.transaction.milestone.contractId,
       })),
     };
+  }
+
+  /** Milestones in dispute in the admin's corner, oldest first: what waits for a decision. */
+  async disputes(admin: AuthUser): Promise<DisputeView[]> {
+    const rows = await this.db.contractMilestone.findMany({
+      where: { status: "disputed", contract: { sandboxId: admin.sandboxId } },
+      include: {
+        contract: {
+          include: { project: { select: { id: true, title: true } }, client: true, freelancer: true },
+        },
+      },
+      orderBy: [{ disputedAt: "asc" }, { id: "asc" }],
+    });
+    return rows.map((m) => {
+      const { client, freelancer } = m.contract;
+      const by = m.disputedById === client.id ? client : freelancer;
+      return {
+        milestoneId: m.id,
+        title: m.title,
+        amountCents: Number(m.amountCents),
+        reason: m.disputeReason,
+        disputedAt: (m.disputedAt ?? m.createdAt).toISOString(),
+        disputedBy: { id: by.id, name: by.name },
+        contract: { id: m.contractId, project: m.contract.project },
+        client: { id: client.id, name: client.name },
+        freelancer: { id: freelancer.id, name: freelancer.name },
+      };
+    });
   }
 }
 

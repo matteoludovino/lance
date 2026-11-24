@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Get,
-  Headers,
-  HttpCode,
-  Param,
-  Post,
-  Req,
-} from "@nestjs/common";
+import { Body, Controller, Get, Headers, HttpCode, Param, Post, Req } from "@nestjs/common";
 import {
   deliveryInput,
   disputeInput,
@@ -17,11 +7,13 @@ import {
   revisionInput,
   type ContractSummary,
   type ContractView,
+  type DisputeView,
   type MilestoneActionResult,
   type WalletView,
 } from "@lance/shared";
 import type { FastifyRequest } from "fastify";
 import type { z } from "zod";
+import { adminOnly } from "../auth/admin.ts";
 import { CurrentUser, type AuthUser } from "../auth/auth-user.ts";
 import { uuidParam } from "../common/params.ts";
 import { ZodPipe } from "../common/zod.pipe.ts";
@@ -146,6 +138,12 @@ export class ContractsController {
     return this.milestones.resolve(user, id, body.outcome);
   }
 
+  @Get("admin/disputes")
+  disputes(@CurrentUser() user: AuthUser): Promise<DisputeView[]> {
+    adminOnly(user);
+    return this.contracts.disputes(user);
+  }
+
   /** The ledger checked against itself and the milestones: an empty list means everything adds up. */
   @Get("admin/reconciliation")
   async reconciliation(@CurrentUser() user: AuthUser): Promise<{ ok: boolean; problems: Problem[] }> {
@@ -153,9 +151,4 @@ export class ContractsController {
     const problems = await reconcile(this.db);
     return { ok: problems.length === 0, problems };
   }
-}
-
-function adminOnly(user: AuthUser): void {
-  if (user.role !== "admin")
-    throw new ForbiddenException({ code: "admins_only", message: "Só administradores." });
 }

@@ -15,6 +15,7 @@ import { OutboxService, type Tx } from "../outbox/outbox.service.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
 import { Scheduler } from "../scheduler/scheduler.service.ts";
 import { REVIEW_EVENTS } from "../reviews/reviews.service.ts";
+import { Audit } from "../moderation/audit.ts";
 import { Clock } from "../time/clock.ts";
 import { Idempotency, Replayed, type IdempotencyRequest } from "./idempotency.ts";
 
@@ -56,6 +57,7 @@ export class Milestones implements OnModuleInit {
     private readonly scheduler: Scheduler,
     private readonly idempotency: Idempotency,
     private readonly clock: Clock,
+    private readonly audit: Audit,
   ) {}
 
   onModuleInit(): void {
@@ -210,6 +212,17 @@ export class Milestones implements OnModuleInit {
       );
       if (outcome === "release") await this.release(tx, m);
       else await this.refund(tx, m);
+      await this.audit.record(
+        tx,
+        admin,
+        "dispute.resolved",
+        { type: "milestone", id },
+        {
+          outcome,
+          contractId: m.contractId,
+          amountCents: Number(m.amountCents),
+        },
+      );
       return outcome === "release" ? "resolved_released" : "resolved_refunded";
     });
   }
