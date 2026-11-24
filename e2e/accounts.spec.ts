@@ -1,6 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { seedId } from "../apps/api/src/seed/seed.ts";
-import { PASSWORD, emailedLink, field, newEmail, otherPerson, signUp } from "./helpers";
+import { PASSWORD, emailedLink, field, newEmail, otherPerson, signUp, expect, test } from "./helpers";
 
 test("sign up, confirm by email, build a freelancer profile and see it as a visitor", async ({
   page,

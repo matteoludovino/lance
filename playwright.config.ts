@@ -5,13 +5,6 @@ import { defineConfig, devices } from "@playwright/test";
 const E2E_DATABASE_URL =
   process.env["E2E_DATABASE_URL"] ?? "postgresql://lance:lance@localhost:5439/lance_e2e";
 
-// The API sits behind the web app's rewrite, as in production, and trusts X-Forwarded-For: each run (and
-// each retry, in a fresh worker) is its own client address, so per-address limits don't carry over.
-export const CLIENT_IP = `10.${rand()}.${rand()}.${rand()}`;
-function rand() {
-  return Math.floor(Math.random() * 250) + 1;
-}
-
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: false,
@@ -25,7 +18,6 @@ export default defineConfig({
     locale: "pt-BR",
     timezoneId: "America/Sao_Paulo",
     trace: "retain-on-failure",
-    extraHTTPHeaders: { "x-forwarded-for": CLIENT_IP },
     ...devices["Desktop Chrome"],
   },
   webServer: [
@@ -39,6 +31,9 @@ export default defineConfig({
         WEB_ORIGINS: "http://localhost:3030",
         WEB_URL: "http://localhost:3030",
         SMTP_URL: "smtp://localhost:1025",
+        // Behind the web app's rewrite, as in production: client addresses come from X-Forwarded-For,
+        // and each person in the tests has their own (see e2e/helpers.ts), so per-address limits apply
+        // as they would to real people.
         TRUST_PROXY: "true",
         LOG_LEVEL: "warn",
       },

@@ -1,5 +1,16 @@
-import { expect, type Browser, type Page } from "@playwright/test";
-import { CLIENT_IP } from "../playwright.config";
+import { test as base, expect, type Browser, type Page } from "@playwright/test";
+
+/** A client address of its own: each test's main person, and each other person, comes from one. */
+export function newAddress(): string {
+  const part = () => Math.floor(Math.random() * 250) + 1;
+  return `10.${part()}.${part()}.${part()}`;
+}
+
+/** Playwright's test, with the test's main browser at its own address. */
+export const test = base.extend({
+  extraHTTPHeaders: async ({}, use) => use({ "x-forwarded-for": newAddress() }),
+});
+export { expect };
 
 const MAILPIT = process.env["MAILPIT_URL"] ?? "http://localhost:8025";
 export const PASSWORD = "senha-boa-123";
@@ -52,12 +63,12 @@ export async function signUp(page: Page, name: string, email: string) {
   await expect(page).toHaveURL("/painel");
 }
 
-/** A second person: a browser context of their own (own cookies), from the same client address. */
+/** A second person: a browser context of their own (own cookies), from their own address. */
 export async function otherPerson(browser: Browser): Promise<Page> {
   const context = await browser.newContext({
     baseURL: "http://localhost:3030",
     locale: "pt-BR",
-    extraHTTPHeaders: { "x-forwarded-for": CLIENT_IP },
+    extraHTTPHeaders: { "x-forwarded-for": newAddress() },
   });
   return context.newPage();
 }

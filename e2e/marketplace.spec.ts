@@ -1,5 +1,7 @@
-import { expect, test } from "@playwright/test";
-import { field, newEmail, otherPerson, signUp } from "./helpers";
+import { field, newEmail, otherPerson, signUp, expect, test } from "./helpers";
+
+// The e2e database keeps earlier runs' projects: a title of this run's own.
+const TITLE = `Loja virtual para ateliê ${Date.now().toString(36)}`;
 
 test("a client publishes, a freelancer proposes and changes the price, the client hires", async ({
   page: client,
@@ -14,7 +16,7 @@ test("a client publishes, a freelancer proposes and changes the price, the clien
 
   await client.goto("/projetos/novo");
   await expect(client.getByRole("heading", { name: "Publicar um projeto" })).toBeVisible();
-  await field(client, "Título").fill("Loja virtual para ateliê de cerâmica");
+  await field(client, "Título").fill(TITLE);
   await field(client, "Descrição").fill(
     "Quero vender peças únicas pela internet: catálogo com fotos, frete por CEP e pagamento por Pix e cartão.",
   );
@@ -40,7 +42,7 @@ test("a client publishes, a freelancer proposes and changes the price, the clien
   await expect(freelancer.getByRole("status").filter({ hasText: "Salvo." })).toBeVisible();
 
   await freelancer.goto("/projetos");
-  await freelancer.getByRole("link", { name: "Loja virtual para ateliê de cerâmica" }).click();
+  await freelancer.getByRole("link", { name: TITLE }).click();
   await expect(freelancer.getByRole("button", { name: "Enviar proposta" })).toBeVisible();
   await field(freelancer, "Carta de apresentação").fill(
     "Já fiz lojas para ateliês e conheço bem frete por CEP.",
@@ -77,5 +79,5 @@ test("a client publishes, a freelancer proposes and changes the price, the clien
   await freelancer.reload();
   await expect(freelancer.getByText("O cliente aceitou")).toBeVisible();
   await freelancer.goto("/projetos");
-  await expect(freelancer.getByRole("link", { name: "Loja virtual para ateliê de cerâmica" })).toHaveCount(0);
+  await expect(freelancer.getByRole("link", { name: TITLE })).toHaveCount(0);
 });
