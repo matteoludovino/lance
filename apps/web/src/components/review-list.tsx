@@ -1,6 +1,7 @@
 import type { ReviewView } from "@lance/shared";
 import Link from "next/link";
 import { ago } from "@/lib/format";
+import { ReportButton } from "./report-button";
 import { Stars } from "./stars";
 
 export function ReviewItem({ review }: { review: ReviewView }) {
@@ -11,17 +12,26 @@ export function ReviewItem({ review }: { review: ReviewView }) {
         <span className="text-xs text-stone-500">{ago(review.createdAt)}</span>
       </div>
       <p className="leading-relaxed text-stone-800">{review.comment}</p>
-      <p className="text-sm text-stone-500">
-        {review.author.name}
-        {review.project ? (
-          <>
-            {" · "}
-            <Link href={`/projetos/${review.project.id}`} className="hover:underline">
-              {review.project.title}
-            </Link>
-          </>
-        ) : null}
-      </p>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <p className="text-sm text-stone-500">
+          {review.author.name}
+          {review.project ? (
+            <>
+              {" · "}
+              <Link href={`/projetos/${review.project.id}`} className="hover:underline">
+                {review.project.title}
+              </Link>
+            </>
+          ) : null}
+        </p>
+        <ReportButton
+          targetType="review"
+          targetId={review.id}
+          ownerId={review.author.id}
+          label="Denunciar"
+          className="text-xs"
+        />
+      </div>
     </article>
   );
 }

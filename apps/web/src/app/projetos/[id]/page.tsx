@@ -7,6 +7,7 @@ import {
 } from "@lance/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ReportButton } from "@/components/report-button";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ProfileSkeleton, Section, Unavailable } from "@/components/profile-page";
@@ -76,6 +77,12 @@ async function Project({ params }: { params: PageProps<"/projetos/[id]">["params
             ))}
           </ul>
         </Section>
+        <ReportButton
+          targetType="project"
+          targetId={project.id}
+          ownerId={project.client.id}
+          className="justify-self-start"
+        />
         {project.isOwner ? (
           <OwnerPanel project={project} proposals={proposals?.status === "ok" ? proposals.data : null} />
         ) : null}

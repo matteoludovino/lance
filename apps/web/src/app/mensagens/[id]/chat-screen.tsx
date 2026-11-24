@@ -9,6 +9,7 @@ import { RequireSession } from "@/components/require-session";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { api, ApiFailure } from "@/lib/api";
+import { ReportButton } from "@/components/report-button";
 import { dateTime } from "@/lib/format";
 import { useConnection, useRealtime, useTyping } from "@/lib/realtime";
 
@@ -329,7 +330,7 @@ function Bubble({
 }) {
   return (
     <li
-      className={`flex flex-col gap-0.5 ${mine ? "items-end" : "items-start"} ${firstOfGroup ? "mt-2" : ""}`}
+      className={`group flex flex-col gap-0.5 ${mine ? "items-end" : "items-start"} ${firstOfGroup ? "mt-2" : ""}`}
     >
       <p
         className={`max-w-[80%] rounded-2xl px-3 py-2 whitespace-pre-wrap break-words ${mine ? "bg-indigo-600 text-white" : "bg-stone-100 text-stone-900"}`}
@@ -338,6 +339,16 @@ function Bubble({
         {message.body}
       </p>
       {receipt ? <span className="text-xs text-stone-500">{receipt}</span> : null}
+      {mine ? null : (
+        // Always there on touch screens; on wider ones, on hover or keyboard focus.
+        <ReportButton
+          targetType="message"
+          targetId={message.id}
+          ownerId={message.senderId}
+          label="Denunciar"
+          className="text-xs sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+        />
+      )}
     </li>
   );
 }

@@ -12,6 +12,7 @@ import {
   place,
 } from "@/components/profile-page";
 import { InviteButton } from "@/components/invite-button";
+import { ReportButton } from "@/components/report-button";
 import { ReviewList } from "@/components/review-list";
 import { ReputationLine } from "@/components/stars";
 import { serverGet } from "@/lib/server-api";
@@ -80,6 +81,12 @@ async function Freelancer({ params }: { params: PageProps<"/freelancers/[id]">["
           empty="Ninguém avaliou este freelancer ainda."
         />
       </Section>
+      <ReportButton
+        targetType="profile"
+        targetId={profile.id}
+        ownerId={profile.id}
+        className="justify-self-start"
+      />
     </article>
   );
 }

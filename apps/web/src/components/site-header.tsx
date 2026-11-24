@@ -65,6 +65,11 @@ export function SiteHeader() {
             Freelancers
           </Link>
           {me ? <MessagesLink /> : null}
+          {me?.role === "admin" ? (
+            <Link href="/admin" className="text-sm text-stone-700 hover:text-stone-900">
+              Admin
+            </Link>
+          ) : null}
         </nav>
         <nav aria-label="Conta" className="ml-auto flex items-center gap-2">
           {isPending ? null : me ? (

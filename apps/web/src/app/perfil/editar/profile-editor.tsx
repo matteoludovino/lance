@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   CATEGORIES,
   STATES,
@@ -47,7 +48,12 @@ function Editor({ me }: { me: Me }) {
 
   return (
     <main className="mx-auto grid max-w-3xl gap-8 px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Seu perfil</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight">Seu perfil</h1>
+        <Link href="/perfil/emails" className="text-sm font-medium text-indigo-700 hover:underline">
+          Preferências de e-mail
+        </Link>
+      </div>
       <AccountForm me={me} />
       <section className="grid gap-4">
         <div role="tablist" aria-label="Lado do perfil" className="flex gap-1 border-b border-stone-200">
