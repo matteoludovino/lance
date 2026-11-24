@@ -250,12 +250,15 @@ enum ContractStatus {
   cancelled
 }
 
+/// pending_funding → funded → submitted → released (approved, or automatically after the delay)
+///                                      ↘ revision_requested → submitted (at most twice)
+/// funded | submitted | revision_requested → disputed → released | refunded (an admin decides)
+/// pending_funding → cancelled; funded and never delivered → refunded (either party, alone)
 enum MilestoneStatus {
   pending_funding
   funded
   submitted
   revision_requested
-  approved
   disputed
   released
   refunded
@@ -265,21 +268,24 @@ enum MilestoneStatus {
 /// The agreement made by accepting a proposal: at most one per project. The fee is copied in, so later
 /// changes to the platform's fee never touch existing contracts. Funding and payment arrive in stage 4.
 model Contract {
-  id           String              @id @db.Uuid
-  projectId    String              @unique @db.Uuid
-  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  proposalId   String              @unique @db.Uuid
-  proposal     Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  clientId     String              @db.Uuid
-  client       User                @relation("ContractClient", fields: [clientId], references: [id], onDelete: Cascade)
-  freelancerId String              @db.Uuid
-  freelancer   User                @relation("ContractFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
-  sandboxId    String?             @db.Uuid
-  priceCents   BigInt
-  feeBps       Int
-  status       ContractStatus      @default(active)
-  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
-  milestones   ContractMilestone[]
+  id               String              @id @db.Uuid
+  projectId        String              @unique @db.Uuid
+  project          Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  proposalId       String              @unique @db.Uuid
+  proposal         Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  clientId         String              @db.Uuid
+  client           User                @relation("ContractClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancerId     String              @db.Uuid
+  freelancer       User                @relation("ContractFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  sandboxId        String?             @db.Uuid
+  priceCents       BigInt
+  feeBps           Int
+  /// How long a delivery waits for the client before it is released on its own. Copied in, like the fee.
+  autoReleaseHours Int
+  status           ContractStatus      @default(active)
+  createdAt        DateTime            @default(now()) @db.Timestamptz(3)
+  completedAt      DateTime?           @db.Timestamptz(3)
+  milestones       ContractMilestone[]
 
   @@index([clientId])
   @@index([freelancerId])
@@ -287,16 +293,32 @@ model Contract {
 }
 
 model ContractMilestone {
-  id          String          @id @db.Uuid
-  contractId  String          @db.Uuid
-  contract    Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  position    Int
-  title       String          @db.VarChar(80)
-  amountCents BigInt
-  status      MilestoneStatus @default(pending_funding)
-  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  id                 String              @id @db.Uuid
+  contractId         String              @db.Uuid
+  contract           Contract            @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  position           Int
+  title              String              @db.VarChar(80)
+  amountCents        BigInt
+  status             MilestoneStatus     @default(pending_funding)
+  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
+  fundedAt           DateTime?           @db.Timestamptz(3)
+  submittedAt        DateTime?           @db.Timestamptz(3)
+  /// When a delivery still waiting for the client is released on its own (the scheduler's due time).
+  releaseDueAt       DateTime?           @db.Timestamptz(3)
+  /// When it reached its final state (released, refunded or cancelled).
+  settledAt          DateTime?           @db.Timestamptz(3)
+  revisionCount      Int                 @default(0)
+  deliveryNote       String?
+  revisionNote       String?
+  disputedById       String?             @db.Uuid
+  disputeReason      String?
+  disputedAt         DateTime?           @db.Timestamptz(3)
+  resolvedById       String?             @db.Uuid
+  ledgerTransactions LedgerTransaction[]
+  ledgerAccounts     LedgerAccount[]
 
   @@unique([contractId, position])
+  @@index([status, releaseDueAt])
   @@map("contract_milestones")
 }
 
@@ -317,4 +339,86 @@ model Conversation {
   @@index([clientId])
   @@index([freelancerId])
   @@map("conversations")
+}
+
+enum LedgerAccountKind {
+  /// The outside world (the client's card): money comes in from it and goes back to it. May go negative.
+  external
+  /// One per milestone: holds the milestone's amount while it is funded and not yet settled.
+  escrow
+  /// A freelancer's earnings (one per person and sandbox). No withdrawals in this simulation.
+  wallet
+  /// The platform's fees.
+  revenue
+}
+
+/// Simulated money, double-entry: every movement is a transaction whose entries add up to zero, and the
+/// database enforces it (see the migration: zero-sum at commit, append-only, no negative balances).
+/// Accounts belong to one sandbox, and a transaction never crosses sandboxes, so removing a demo
+/// visitor's sandbox removes whole, balanced transactions.
+model LedgerAccount {
+  id           String             @id @db.Uuid
+  /// What makes the account unique: "external:<sandbox>", "escrow:<milestone>", "wallet:<user>:<sandbox>",
+  /// "revenue:<sandbox>" ("real" for no sandbox).
+  scopeKey     String             @unique @db.VarChar(120)
+  kind         LedgerAccountKind
+  sandboxId    String?            @db.Uuid
+  userId       String?            @db.Uuid
+  milestoneId  String?            @db.Uuid
+  milestone    ContractMilestone? @relation(fields: [milestoneId], references: [id], onDelete: Restrict)
+  /// Kept by a trigger on every entry; reconciliation checks it equals the sum of the entries.
+  balanceCents BigInt             @default(0)
+  createdAt    DateTime           @default(now()) @db.Timestamptz(3)
+  entries      LedgerEntry[]
+
+  @@index([userId])
+  @@map("ledger_accounts")
+}
+
+enum LedgerTransactionKind {
+  fund
+  release
+  refund
+}
+
+model LedgerTransaction {
+  id          String                @id @db.Uuid
+  kind        LedgerTransactionKind
+  milestoneId String                @db.Uuid
+  milestone   ContractMilestone     @relation(fields: [milestoneId], references: [id], onDelete: Restrict)
+  sandboxId   String?               @db.Uuid
+  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
+  entries     LedgerEntry[]
+
+  /// Exactly one movement per milestone and kind: funded once, released or refunded once.
+  @@unique([milestoneId, kind])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id            BigInt            @id @default(autoincrement())
+  transactionId String            @db.Uuid
+  transaction   LedgerTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  accountId     String            @db.Uuid
+  account       LedgerAccount     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  /// Positive credits the account, negative debits it. Never zero.
+  amountCents   BigInt
+
+  @@index([transactionId])
+  @@index([accountId])
+  @@map("ledger_entries")
+}
+
+/// A client's retry key for a request that moves money: the same key and body get the first answer
+/// again; the same key with another body is refused.
+model IdempotencyKey {
+  userId         String   @db.Uuid
+  key            String   @db.VarChar(100)
+  requestHash    String   @db.Char(64)
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([userId, key])
+  @@map("idempotency_keys")
 }

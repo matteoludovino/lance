@@ -130,3 +130,14 @@ export function proposalDeclined(name: string, project: string, url: string): Em
     footer: NOTICE,
   });
 }
+
+/** Everything that happens to a milestone, in one short email: what happened and a link to the contract. */
+export function milestoneUpdate(name: string, subject: string, sentence: string, url: string): Email {
+  return layout({
+    subject,
+    greeting: `Olá, ${name}!`,
+    paragraphs: [sentence],
+    action: { label: "Ver contrato", url },
+    footer: NOTICE,
+  });
+}

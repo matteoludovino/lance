@@ -1,4 +1,4 @@
-import type { Me } from "@lance/shared";
+import type { ContractView, Me } from "@lance/shared";
 import { createApp } from "../src/bootstrap.ts";
 import { uuidv7 } from "../src/common/ids.ts";
 import { hashToken, newToken } from "../src/common/secrets.ts";
@@ -24,11 +24,17 @@ export function testApp(overrides: Record<string, string> = {}, { clock }: { clo
 
 /** Empties every table that tests write (the schema stays). */
 export async function resetDb(db: PrismaService): Promise<void> {
-  await db.$executeRawUnsafe(
-    `TRUNCATE users, sandboxes, sessions, email_tokens, sent_emails, outbox_events,
-      client_profiles, freelancer_profiles, projects, proposals, contracts, contract_milestones,
-      conversations RESTART IDENTITY CASCADE`,
-  );
+  // The ledger is append-only; tests clear it the one way the database allows (a purge, for this
+  // transaction only).
+  await db.$transaction([
+    db.$executeRawUnsafe(`SELECT set_config('lance.ledger_purge', 'on', true)`),
+    db.$executeRawUnsafe(
+      `TRUNCATE users, sandboxes, sessions, email_tokens, sent_emails, outbox_events,
+        client_profiles, freelancer_profiles, projects, proposals, contracts, contract_milestones,
+        conversations, ledger_entries, ledger_transactions, ledger_accounts, idempotency_keys
+        RESTART IDENTITY CASCADE`,
+    ),
+  ]);
 }
 
 let addresses = 0;
@@ -152,3 +158,54 @@ export const PROPOSAL = {
     { title: "Frete e assinatura", amountCents: 200_000 },
   ],
 };
+
+type Someone = Awaited<ReturnType<typeof person>>;
+
+export async function publishProject(owner: Someone, overrides: object = {}): Promise<{ id: string }> {
+  const response = await owner.browser.post("/api/projects", { ...PROJECT, ...overrides, publish: true });
+  if (response.statusCode !== 201) throw new Error(`publish failed: ${response.body}`);
+  return response.json();
+}
+
+export async function sendProposal(freelancer: Someone, projectId: string, overrides: object = {}) {
+  const response = await freelancer.browser.post(`/api/projects/${projectId}/proposals`, {
+    ...PROPOSAL,
+    ...overrides,
+  });
+  if (response.statusCode !== 201) throw new Error(`proposal failed: ${response.body}`);
+  return response.json() as Promise<{ id: string; version: number }>;
+}
+
+/**
+ * A client and a freelancer under an active contract (by default two milestones: R$ 2.500 and
+ * R$ 2.000,00, fee 10%).
+ */
+export async function hire(
+  app: App,
+  { sandboxId = null as string | null, milestones = PROPOSAL.milestones } = {},
+) {
+  const client = await person(app, ["client"], { sandboxId, name: "Helena Duarte" });
+  const freelancer = await person(app, ["freelancer"], { sandboxId, name: "Marina Costa" });
+  const project = await publishProject(client);
+  const proposal = await sendProposal(freelancer, project.id, { milestones });
+  const accepted = await client.browser.post(`/api/proposals/${proposal.id}/accept`, {
+    version: proposal.version,
+  });
+  if (accepted.statusCode !== 200) throw new Error(`accept failed: ${accepted.body}`);
+  const contractId: string = accepted.json().contractId;
+  const contract = (await client.browser.get(`/api/contracts/${contractId}`)).json() as ContractView;
+  return {
+    client,
+    freelancer,
+    contractId,
+    projectId: project.id,
+    milestones: contract.milestones.map((m) => m.id),
+  };
+}
+
+/** A signed-in admin (in a sandbox or not). */
+export async function admin(app: App, sandboxId: string | null = null) {
+  const user = await directUser(app, { sandboxId, name: "Admin" });
+  await app.get(PrismaService).user.update({ where: { id: user.id }, data: { role: "admin" } });
+  return user;
+}

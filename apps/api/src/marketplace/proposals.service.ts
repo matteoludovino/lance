@@ -217,6 +217,7 @@ export class Proposals {
             sandboxId: user.sandboxId ?? row.sandboxId,
             priceCents: row.priceCents,
             feeBps: this.env.PLATFORM_FEE_BPS,
+            autoReleaseHours: this.env.AUTO_RELEASE_HOURS,
             createdAt: now,
             milestones: {
               create: milestones.map((milestone, index) => ({

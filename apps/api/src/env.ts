@@ -32,6 +32,8 @@ const schema = z.object({
   MAIL_FROM: z.string().default("Lance <nao-responda@lance.local>"),
   /** The platform's fee, in basis points of each milestone (1000 = 10%). Copied into every new contract. */
   PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(10_000).default(1000),
+  /** How long a delivery waits for the client before it's paid on its own. Copied into every new contract. */
+  AUTO_RELEASE_HOURS: z.coerce.number().int().positive().default(168),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).default("log"),
 });
 
