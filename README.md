@@ -26,8 +26,11 @@ when each delivery is approved, both sides review each other, and they talk in r
   contact details (phone, email, WhatsApp…) get a warning about leaving the platform's protection.
 - **Double-blind reviews.** After a contract with a paid milestone, each side reviews the other once,
   within 14 days. Neither sees the other's review until both wrote or the 14 days are over, so nobody
-  rates in retaliation. Reputation counts revealed reviews only; ranking (next stage) will use a
-  Bayesian average so one perfect review doesn't beat fifty very good ones.
+  rates in retaliation. Reputation counts revealed reviews only.
+- **Search in Portuguese.** Projects and freelancers are found by words typed with or without accents
+  ("programacao" finds "programação"), in any form of the word ("lojas" finds "loja"), with filters
+  (category, skills, budget, rating, availability), a count beside each filter, and freelancers ranked by
+  relevance × a Bayesian rating, so one perfect review doesn't beat fifty very good ones.
 - **Seeded marketplace.** Twelve freelancers, five clients, eight open projects and a review history,
   all fictional, so the market isn't empty.
 
@@ -74,6 +77,13 @@ A few rules every later feature builds on:
   changes nothing in the database and nothing can be revealed twice or missed. Reviews can't be edited
   (a trigger allows only moderation's hidden flag), and a person's numbers count only reviews from their
   own corner of the marketplace, so demo visitors never move a seeded freelancer's rating.
+- **Search is Postgres full text.** A `pt_unaccent` configuration (Portuguese stemming after stripping
+  accents) feeds generated, weighted `tsvector` columns (title over skills over description) with GIN
+  indexes; queries read as a web search (`"exact phrase"`, `-word`). The facets come from one query over
+  the same matching rows: categories counted as if none were picked, skills within the results. Orders
+  by a stored column (date, price) page by keyset; orders by a computed score (relevance, rating) page by
+  offset, capped at ten pages. The reputation in the ranking is the same SQL the profile pages use, with
+  the same reveal and sandbox rules.
 - **Time** comes from an injectable clock, and side effects (email, and later delayed rules) go through
   a transactional outbox drained by a scheduler inside the API: no external queue for a free-plan
   server that sleeps.
@@ -107,6 +117,6 @@ npm run dev                        # API on :8040, web on http://localhost:3030
 4. ✅ Contracts, milestones and the simulated escrow ledger
 5. ✅ Real-time messaging
 6. ✅ Double-blind reviews and reputation
-7. Search in Portuguese (full text, filters, facets)
+7. ✅ Search in Portuguese (full text, filters, facets)
 8. Moderation and email notifications
 9. One-click demo with simulated activity, end-to-end tests, final deploy
