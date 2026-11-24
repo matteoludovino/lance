@@ -31,6 +31,15 @@ when each delivery is approved, both sides review each other, and they talk in r
   ("programacao" finds "programação"), in any form of the word ("lojas" finds "loja"), with filters
   (category, skills, budget, rating, availability), a count beside each filter, and freelancers ranked by
   relevance × a Bayesian rating, so one perfect review doesn't beat fifty very good ones.
+- **Moderation.** Anyone signed in can report a project, a profile, a message or a review; messages with
+  contact details before a contract are reported automatically. Admins work a queue: open a report (the
+  opening is logged, since messages are private), hide the content, suspend its author (signed out
+  everywhere at once) or dismiss it, and undo any of these. They also decide disputes, and see whether
+  the ledger adds up.
+- **Email people can control.** Each optional email (proposals, contracts, reviews, unread messages)
+  carries a signed unsubscribe link and the one-click header email clients turn into a button; a
+  preferences page turns kinds on and off. Account and moderation emails always go. Unread messages
+  become one email per conversation, 10 minutes after the first one, and only if still unread.
 - **Seeded marketplace.** Twelve freelancers, five clients, eight open projects and a review history,
   all fictional, so the market isn't empty.
 
@@ -84,6 +93,14 @@ A few rules every later feature builds on:
   by a stored column (date, price) page by keyset; orders by a computed score (relevance, rating) page by
   offset, capped at ten pages. The reputation in the ranking is the same SQL the profile pages use, with
   the same reveal and sandbox rules.
+- **Moderation leaves a trail.** Every admin decision, and every report an admin opens, is written to an
+  audit log in the same transaction as the action; like the ledger, the database refuses to change or
+  delete it. Admins act only within their own corner of the marketplace (a demo's admin, only on what was
+  created in that demo). Granting admin is a command (`npm run admin:grant -w @lance/api -- email`),
+  never a route.
+- **Links that act without a session are signed.** Unsubscribe links carry the person and the category
+  signed with HMAC (`SIGNING_SECRET`, required in production); the one-click endpoint is the only
+  state-changing route that skips the Origin check, because the signature is its proof.
 - **Time** comes from an injectable clock, and side effects (email, and later delayed rules) go through
   a transactional outbox drained by a scheduler inside the API: no external queue for a free-plan
   server that sleeps.
@@ -108,6 +125,7 @@ npm run dev                        # API on :8040, web on http://localhost:3030
 | `npm run lint` / `typecheck` / `format:check` | Across all workspaces                               |
 | `npm run build`                               | API bundle and web build                            |
 | `docker build -f apps/api/Dockerfile .`       | API image (applies migrations on start)             |
+| `npm run admin:grant -w @lance/api -- EMAIL`  | Makes a verified account an admin                   |
 
 ## Roadmap
 
@@ -118,5 +136,5 @@ npm run dev                        # API on :8040, web on http://localhost:3030
 5. ✅ Real-time messaging
 6. ✅ Double-blind reviews and reputation
 7. ✅ Search in Portuguese (full text, filters, facets)
-8. Moderation and email notifications
+8. ✅ Moderation and email notifications
 9. One-click demo with simulated activity, end-to-end tests, final deploy
