@@ -297,6 +297,7 @@ describe("demo isolation", () => {
     const realProject = await publish(real);
     const visitorA = await person(app, ["client", "freelancer"], { sandboxId: a });
     const visitorB = await person(app, ["freelancer"], { sandboxId: b });
+    clock.advance(1000); // newer, so it lists first (within one instant, ids order at random)
     const projectA = await publish(visitorA);
 
     expect(await list(new Browser(app))).toEqual([realProject.id]);
