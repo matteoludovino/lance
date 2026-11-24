@@ -211,7 +211,7 @@ describe("automatic release", () => {
 });
 
 describe("races", () => {
-  it("approval, automatic release, revision and dispute at once: exactly one happens", async () => {
+  it("approval, automatic release, revision and dispute at once: one payment at most, never mixed", async () => {
     for (let round = 0; round < 6; round++) {
       await resetDb(db);
       const { client, freelancer, milestones } = await hire(app);
@@ -219,7 +219,7 @@ describe("races", () => {
       await client.browser.post(`/api/milestones/${first}/fund`);
       await freelancer.browser.post(`/api/milestones/${first}/submit`, NOTE);
       clock.advance(200 * HOUR);
-      const answers = await Promise.all([
+      const [approve, released, revise, dispute] = await Promise.all([
         client.browser.post(`/api/milestones/${first}/approve`),
         releaseDue(),
         client.browser.post(`/api/milestones/${first}/request-revision`, { note: "Faltou o frete por CEP." }),
@@ -227,11 +227,28 @@ describe("races", () => {
           reason: "O cliente não responde há dias.",
         }),
       ]);
-      const succeeded = answers.filter((a) => (typeof a === "number" ? a === 1 : a.statusCode === 200));
-      expect(succeeded).toHaveLength(1);
-      expect(
-        await db.ledgerTransaction.count({ where: { kind: { in: ["release", "refund"] } } }),
-      ).toBeLessThanOrEqual(1);
+      const won = [
+        approve.statusCode === 200 && "approve",
+        released === 1 && "auto_release",
+        revise.statusCode === 200 && "revise",
+        dispute.statusCode === 200 && "dispute",
+      ].filter(Boolean);
+      // A payment ends the milestone, so it wins alone. A revision request may be followed by a
+      // dispute (disputing a requested revision is allowed): the one legitimate pair.
+      expect([["approve"], ["auto_release"], ["revise"], ["dispute"], ["revise", "dispute"]]).toContainEqual(
+        won,
+      );
+      const final = await db.contractMilestone.findUniqueOrThrow({ where: { id: first } });
+      const expected = {
+        approve: "released",
+        auto_release: "released",
+        revise: "revision_requested",
+        dispute: "disputed",
+      };
+      expect(final.status).toBe(expected[won.at(-1) as keyof typeof expected]);
+      expect(await db.ledgerTransaction.count({ where: { kind: "release" } })).toBe(
+        final.status === "released" ? 1 : 0,
+      );
       await expectReconciled();
     }
   });
