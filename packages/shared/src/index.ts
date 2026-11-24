@@ -7,3 +7,4 @@ export * from "./errors";
 export * from "./health";
 export * from "./money";
 export * from "./profiles";
+export * from "./projects";

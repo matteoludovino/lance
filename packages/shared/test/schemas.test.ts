@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORY_SLUGS, SKILLS, formatBRL, freelancerProfileInput, parseBRL, signupInput } from "../src";
+import {
+  CATEGORY_SLUGS,
+  SKILLS,
+  formatBRL,
+  freelancerProfileInput,
+  parseBRL,
+  projectInput,
+  proposalInput,
+  proposalPrice,
+  signupInput,
+} from "../src";
 
 describe("catalog", () => {
   it("has unique skill slugs, each in a known category", () => {
@@ -61,5 +71,36 @@ describe("freelancer profile input", () => {
   it("rejects unknown or repeated skills", () => {
     expect(freelancerProfileInput.safeParse({ ...valid, skills: ["cobol"] }).success).toBe(false);
     expect(freelancerProfileInput.safeParse({ ...valid, skills: ["react", "react"] }).success).toBe(false);
+  });
+});
+
+describe("project and proposal input", () => {
+  const project = {
+    title: "Loja virtual para torrefação",
+    description: "Precisamos de uma loja Shopify com frete por CEP e assinatura mensal de café.",
+    category: "desenvolvimento",
+    skills: ["shopify"],
+    budgetMinCents: 300_000,
+    budgetMaxCents: 600_000,
+  };
+
+  it("needs the budget range in order", () => {
+    expect(projectInput.safeParse(project).success).toBe(true);
+    const reversed = projectInput.safeParse({ ...project, budgetMinCents: 700_000 });
+    expect(reversed.success).toBe(false);
+    expect(reversed.error?.issues[0]?.path).toEqual(["budgetMaxCents"]);
+  });
+
+  it("prices a proposal as the sum of its milestones", () => {
+    const proposal = proposalInput.parse({
+      coverLetter: "Já fiz quatro lojas de café e conheço bem o frete por CEP.",
+      deliveryDays: 20,
+      milestones: [
+        { title: "Tema e catálogo", amountCents: 250_000 },
+        { title: "Frete e assinatura", amountCents: 200_050 },
+      ],
+    });
+    expect(proposalPrice(proposal.milestones)).toBe(450_050);
+    expect(proposalInput.safeParse({ ...proposal, milestones: [] }).success).toBe(false);
   });
 });
