@@ -3,20 +3,37 @@
 import type { Me } from "@lance/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { api, ApiFailure } from "./api";
 
 export const ME_KEY = ["me"] as const;
 
+const noop = () => () => {};
+
+/**
+ * False while React hydrates server HTML, true after. The server never knows the session (it renders
+ * "loading"), and a part of the page that streams in late may hydrate after the session query has
+ * already answered: it must still first render what the server rendered.
+ */
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    noop,
+    () => true,
+    () => false,
+  );
+}
+
 /** The signed-in account, or null. One request per page load, shared by every component. */
 export function useMe() {
-  return useQuery({
+  const hydrated = useHydrated();
+  const query = useQuery({
     queryKey: ME_KEY,
     queryFn: async () => (await api<{ me: Me | null }>("/session")).me,
     staleTime: 60_000,
     retry: (count, error) => !(error instanceof ApiFailure && error.status < 500) && count < 4,
     retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 15_000),
   });
+  return hydrated ? query : { ...query, data: undefined, isPending: true as const, error: null };
 }
 
 /** For pages that need a session: sends the visitor to sign in and back here afterwards. */

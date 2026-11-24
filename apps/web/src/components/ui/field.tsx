@@ -30,13 +30,19 @@ function Frame({ id, label, error, hint, children }: Common & { id: string; chil
 }
 
 /** A labelled input with its error (announced with the field) or a hint below. */
-export function TextField({ label, error, hint, ...input }: Common & InputHTMLAttributes<HTMLInputElement>) {
+export function TextField({
+  label,
+  error,
+  hint,
+  className = "",
+  ...input
+}: Common & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
   return (
     <Frame id={id} label={label} error={error} hint={hint}>
       <input
         id={id}
-        className={control}
+        className={`${control} ${className}`}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         {...input}
