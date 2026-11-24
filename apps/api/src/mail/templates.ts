@@ -86,3 +86,47 @@ export function signupWithExistingEmail(name: string, loginUrl: string): Email {
     footer: IGNORE,
   });
 }
+
+const NOTICE = "Você recebe este e-mail porque tem uma conta no Lance.";
+
+export function proposalReceived(
+  name: string,
+  project: string,
+  freelancer: string,
+  price: string,
+  url: string,
+): Email {
+  return layout({
+    subject: `Nova proposta para “${project}”`,
+    greeting: `Olá, ${name}!`,
+    paragraphs: [`${freelancer} enviou uma proposta de ${price} para o seu projeto “${project}”.`],
+    action: { label: "Ver propostas", url },
+    footer: NOTICE,
+  });
+}
+
+export function proposalAccepted(name: string, project: string, client: string, url: string): Email {
+  return layout({
+    subject: `Sua proposta para “${project}” foi aceita`,
+    greeting: `Olá, ${name}!`,
+    paragraphs: [
+      `${client} aceitou sua proposta para “${project}”. O contrato foi criado com as etapas que você propôs.`,
+      "O trabalho começa quando o cliente depositar a primeira etapa.",
+    ],
+    action: { label: "Ver projeto", url },
+    footer: NOTICE,
+  });
+}
+
+export function proposalDeclined(name: string, project: string, url: string): Email {
+  return layout({
+    subject: `Sua proposta para “${project}” não foi escolhida`,
+    greeting: `Olá, ${name}!`,
+    paragraphs: [
+      `O cliente seguiu outro caminho em “${project}”: sua proposta não foi escolhida desta vez.`,
+      "Há outros projetos recebendo propostas agora.",
+    ],
+    action: { label: "Ver projetos", url },
+    footer: NOTICE,
+  });
+}

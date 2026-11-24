@@ -7,12 +7,13 @@ import {
   type PublicClient,
   type PublicFreelancer,
 } from "@lance/shared";
-import { z } from "zod";
+import type { z } from "zod";
 import { CurrentUser, Public, Viewer, type AuthUser } from "../auth/auth-user.ts";
+import { uuidParam } from "../common/params.ts";
 import { ZodPipe } from "../common/zod.pipe.ts";
 import { Profiles } from "./profiles.service.ts";
 
-const idParam = new ZodPipe(z.uuid(), { notFound: "Perfil não encontrado." });
+const idParam = uuidParam("Perfil não encontrado.");
 
 @Controller()
 export class ProfilesController {

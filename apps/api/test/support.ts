@@ -26,7 +26,8 @@ export function testApp(overrides: Record<string, string> = {}, { clock }: { clo
 export async function resetDb(db: PrismaService): Promise<void> {
   await db.$executeRawUnsafe(
     `TRUNCATE users, sandboxes, sessions, email_tokens, sent_emails, outbox_events,
-      client_profiles, freelancer_profiles RESTART IDENTITY CASCADE`,
+      client_profiles, freelancer_profiles, projects, proposals, contracts, contract_milestones,
+      conversations RESTART IDENTITY CASCADE`,
   );
 }
 
@@ -111,3 +112,43 @@ export async function directUser(app: App, { sandboxId = null as string | null, 
   browser.cookie = token;
   return { id, browser };
 }
+
+export const CLIENT_PROFILE = { company: "Café da Serra", about: "Torrefação familiar." };
+export const FREELANCER_PROFILE = {
+  headline: "Desenvolvedora Shopify",
+  bio: "Monto lojas virtuais para pequenos negócios há seis anos.",
+  category: "desenvolvimento",
+  skills: ["shopify", "wordpress"],
+  minBudgetCents: 100_000,
+  available: true,
+};
+
+/** A signed-in user with a client profile, a freelancer profile, or both. */
+export async function person(
+  app: App,
+  sides: ("client" | "freelancer")[],
+  options: { sandboxId?: string | null; name?: string } = {},
+) {
+  const user = await directUser(app, options);
+  if (sides.includes("client")) await user.browser.put("/api/me/client-profile", CLIENT_PROFILE);
+  if (sides.includes("freelancer")) await user.browser.put("/api/me/freelancer-profile", FREELANCER_PROFILE);
+  return user;
+}
+
+export const PROJECT = {
+  title: "Loja virtual para torrefação",
+  description: "Precisamos de uma loja Shopify com frete por CEP e assinatura mensal de café.",
+  category: "desenvolvimento",
+  skills: ["shopify"],
+  budgetMinCents: 300_000,
+  budgetMaxCents: 600_000,
+};
+
+export const PROPOSAL = {
+  coverLetter: "Já fiz quatro lojas de café e conheço bem o frete por CEP e assinaturas.",
+  deliveryDays: 20,
+  milestones: [
+    { title: "Tema e catálogo", amountCents: 250_000 },
+    { title: "Frete e assinatura", amountCents: 200_000 },
+  ],
+};

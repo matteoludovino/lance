@@ -14,7 +14,8 @@ export interface Recipient {
 
 /**
  * Sends email over SMTP (Mailpit locally). Demo accounts never get real email: theirs are kept for the
- * visitor to read in the app. Without an SMTP server, everything is kept. Called from outbox handlers,
+ * visitor to read in the app. Without an SMTP server, everything is kept, and so is email to the seeded
+ * people's undeliverable addresses. Called from outbox handlers,
  * so a failure here is retried later.
  */
 @Injectable()
@@ -31,7 +32,8 @@ export class Mailer implements OnModuleDestroy {
   }
 
   async send(to: Recipient, kind: string, email: Email): Promise<void> {
-    if (this.transport && !to.sandboxId) {
+    // Seeded people have reserved .invalid addresses (RFC 2606): nothing to deliver to.
+    if (this.transport && !to.sandboxId && !to.email.endsWith(".invalid")) {
       await this.transport.sendMail({
         from: this.env.MAIL_FROM,
         to: to.email,

@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaService } from "../src/prisma/prisma.service.ts";
 import { seedId, seedMarketplace } from "../src/seed/seed.ts";
 import { SEED_CLIENTS, SEED_FREELANCERS } from "../src/seed/people.ts";
+import { SEED_PROJECTS } from "../src/seed/projects.ts";
 import { Browser, resetDb, testApp } from "./support.ts";
 
 const app = await testApp();
@@ -15,6 +16,7 @@ describe("seed", () => {
     await seedMarketplace(db);
     expect(await db.freelancerProfile.count()).toBe(SEED_FREELANCERS.length);
     expect(await db.clientProfile.count()).toBe(SEED_CLIENTS.length);
+    expect(await db.project.count({ where: { status: "open" } })).toBe(SEED_PROJECTS.length);
     expect(
       await db.user.count({ where: { OR: [{ sandboxId: { not: null } }, { passwordHash: { not: null } }] } }),
     ).toBe(0);

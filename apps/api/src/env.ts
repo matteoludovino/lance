@@ -30,6 +30,8 @@ const schema = z.object({
   /** Where email goes (smtp://localhost:1025 is Mailpit). Unset: emails are only kept in the database. */
   SMTP_URL: z.url().optional(),
   MAIL_FROM: z.string().default("Lance <nao-responda@lance.local>"),
+  /** The platform's fee, in basis points of each milestone (1000 = 10%). Copied into every new contract. */
+  PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(10_000).default(1000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).default("log"),
 });
 

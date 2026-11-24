@@ -52,23 +52,29 @@ enum Role {
 /// An account. One account can hire (client profile), work (freelancer profile) or both; which side the
 /// interface shows is only a view, every authorization checks who owns the resource.
 model User {
-  id                String             @id @db.Uuid
+  id                      String             @id @db.Uuid
   /// Trimmed and lower-cased. Never sent to anyone but its owner.
-  email             String             @unique @db.VarChar(254)
-  name              String             @db.VarChar(60)
+  email                   String             @unique @db.VarChar(254)
+  name                    String             @db.VarChar(60)
   /// Argon2id. Null: can't sign in with a password (seeded people, demo personas).
-  passwordHash      String?
-  role              Role               @default(user)
-  emailVerifiedAt   DateTime?          @db.Timestamptz(3)
-  sandboxId         String?            @db.Uuid
-  sandbox           Sandbox?           @relation(fields: [sandboxId], references: [id], onDelete: Cascade)
+  passwordHash            String?
+  role                    Role               @default(user)
+  emailVerifiedAt         DateTime?          @db.Timestamptz(3)
+  sandboxId               String?            @db.Uuid
+  sandbox                 Sandbox?           @relation(fields: [sandboxId], references: [id], onDelete: Cascade)
   /// Set by moderation: can't sign in, and disappears from every listing.
-  suspendedAt       DateTime?          @db.Timestamptz(3)
-  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
-  sessions          Session[]
-  emailTokens       EmailToken[]
-  clientProfile     ClientProfile?
-  freelancerProfile FreelancerProfile?
+  suspendedAt             DateTime?          @db.Timestamptz(3)
+  createdAt               DateTime           @default(now()) @db.Timestamptz(3)
+  sessions                Session[]
+  emailTokens             EmailToken[]
+  clientProfile           ClientProfile?
+  freelancerProfile       FreelancerProfile?
+  projects                Project[]
+  proposals               Proposal[]
+  clientContracts         Contract[]         @relation("ContractClient")
+  freelancerContracts     Contract[]         @relation("ContractFreelancer")
+  clientConversations     Conversation[]     @relation("ConversationClient")
+  freelancerConversations Conversation[]     @relation("ConversationFreelancer")
 
   @@index([sandboxId])
   @@map("users")
@@ -165,4 +171,150 @@ model FreelancerProfile {
 
   @@index([sandboxId])
   @@map("freelancer_profiles")
+}
+
+enum ProjectStatus {
+  draft
+  open
+  in_progress
+  completed
+  cancelled
+}
+
+/// What a client needs done, for a fixed price within a budget range. Rows written by demo visitors carry
+/// their sandbox; they go away with the visitor's user (cascade), so no separate key to the sandbox.
+model Project {
+  id             String         @id @db.Uuid
+  clientId       String         @db.Uuid
+  client         User           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sandboxId      String?        @db.Uuid
+  title          String         @db.VarChar(100)
+  description    String
+  category       String         @db.VarChar(40)
+  skills         String[]
+  budgetMinCents BigInt
+  budgetMaxCents BigInt
+  status         ProjectStatus  @default(draft)
+  publishedAt    DateTime?      @db.Timestamptz(3)
+  closedAt       DateTime?      @db.Timestamptz(3)
+  /// Set by moderation: gone from listings (its owner still sees it).
+  hiddenAt       DateTime?      @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
+  proposals      Proposal[]
+  contract       Contract?
+  conversations  Conversation[]
+
+  @@index([status, publishedAt(sort: Desc), id(sort: Desc)])
+  @@index([clientId])
+  @@map("projects")
+}
+
+enum ProposalStatus {
+  submitted
+  withdrawn
+  declined
+  accepted
+}
+
+/// A freelancer's offer for a project: one per freelancer and project (withdrawing and proposing again
+/// reopens the same row). Every change bumps `version`, which accepting must name.
+model Proposal {
+  id           String         @id @db.Uuid
+  projectId    String         @db.Uuid
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  freelancerId String         @db.Uuid
+  freelancer   User           @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  sandboxId    String?        @db.Uuid
+  coverLetter  String
+  deliveryDays Int
+  /// [{ title, amountCents }]; priceCents is their sum.
+  milestones   Json
+  priceCents   BigInt
+  status       ProposalStatus @default(submitted)
+  version      Int            @default(1)
+  submittedAt  DateTime       @db.Timestamptz(3)
+  decidedAt    DateTime?      @db.Timestamptz(3)
+  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @db.Timestamptz(3)
+  contract     Contract?
+
+  @@unique([projectId, freelancerId])
+  @@index([freelancerId])
+  @@map("proposals")
+}
+
+enum ContractStatus {
+  active
+  completed
+  cancelled
+}
+
+enum MilestoneStatus {
+  pending_funding
+  funded
+  submitted
+  revision_requested
+  approved
+  disputed
+  released
+  refunded
+  cancelled
+}
+
+/// The agreement made by accepting a proposal: at most one per project. The fee is copied in, so later
+/// changes to the platform's fee never touch existing contracts. Funding and payment arrive in stage 4.
+model Contract {
+  id           String              @id @db.Uuid
+  projectId    String              @unique @db.Uuid
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  proposalId   String              @unique @db.Uuid
+  proposal     Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  clientId     String              @db.Uuid
+  client       User                @relation("ContractClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancerId String              @db.Uuid
+  freelancer   User                @relation("ContractFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  sandboxId    String?             @db.Uuid
+  priceCents   BigInt
+  feeBps       Int
+  status       ContractStatus      @default(active)
+  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
+  milestones   ContractMilestone[]
+
+  @@index([clientId])
+  @@index([freelancerId])
+  @@map("contracts")
+}
+
+model ContractMilestone {
+  id          String          @id @db.Uuid
+  contractId  String          @db.Uuid
+  contract    Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  position    Int
+  title       String          @db.VarChar(80)
+  amountCents BigInt
+  status      MilestoneStatus @default(pending_funding)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+
+  @@unique([contractId, position])
+  @@map("contract_milestones")
+}
+
+/// Client and freelancer talking about a project. It starts with the proposal (messages arrive in
+/// stage 5): one per project and freelancer.
+model Conversation {
+  id           String   @id @db.Uuid
+  projectId    String   @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId     String   @db.Uuid
+  client       User     @relation("ConversationClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancerId String   @db.Uuid
+  freelancer   User     @relation("ConversationFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  sandboxId    String?  @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([projectId, freelancerId])
+  @@index([clientId])
+  @@index([freelancerId])
+  @@map("conversations")
 }

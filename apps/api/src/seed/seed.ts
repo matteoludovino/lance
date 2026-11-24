@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { clientProfileInput, freelancerProfileInput } from "@lance/shared";
+import { clientProfileInput, freelancerProfileInput, projectInput } from "@lance/shared";
 import type { PrismaClient } from "../generated/prisma/client.ts";
 import { SEED_CLIENTS, SEED_FREELANCERS } from "./people.ts";
+import { SEED_PROJECTS } from "./projects.ts";
 
 /** A stable id per seeded person, so seeding again updates instead of duplicating. */
 export function seedId(key: string): string {
@@ -13,7 +14,9 @@ export function seedId(key: string): string {
 const JOINED = new Date("2025-03-01T12:00:00Z");
 
 /** Writes the seeded marketplace. Safe to run again: it updates the same people. */
-export async function seedMarketplace(db: PrismaClient): Promise<{ freelancers: number; clients: number }> {
+export async function seedMarketplace(
+  db: PrismaClient,
+): Promise<{ freelancers: number; clients: number; projects: number }> {
   for (const [index, person] of [...SEED_FREELANCERS, ...SEED_CLIENTS].entries()) {
     const id = seedId(person.key);
     const user = {
@@ -45,5 +48,26 @@ export async function seedMarketplace(db: PrismaClient): Promise<{ freelancers: 
       update: data,
     });
   }
-  return { freelancers: SEED_FREELANCERS.length, clients: SEED_CLIENTS.length };
+  // Published relative to now, so the marketplace always looks recent.
+  const now = Date.now();
+  for (const { key, client, daysAgo, project } of SEED_PROJECTS) {
+    const data = projectInput.parse(project);
+    const row = {
+      ...data,
+      budgetMinCents: BigInt(data.budgetMinCents),
+      budgetMaxCents: BigInt(data.budgetMaxCents),
+      status: "open" as const,
+      publishedAt: new Date(now - daysAgo * 86_400_000),
+    };
+    await db.project.upsert({
+      where: { id: seedId(`project:${key}`) },
+      create: { id: seedId(`project:${key}`), clientId: seedId(client), sandboxId: null, ...row },
+      update: row,
+    });
+  }
+  return {
+    freelancers: SEED_FREELANCERS.length,
+    clients: SEED_CLIENTS.length,
+    projects: SEED_PROJECTS.length,
+  };
 }
