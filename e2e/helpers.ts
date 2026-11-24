@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { test as base, expect, type Browser, type Page } from "@playwright/test";
 
 /** A client address of its own: each test's main person, and each other person, comes from one. */
@@ -82,4 +83,15 @@ export async function call(page: Page, method: "POST" | "PUT", path: string, dat
   });
   expect(response.status(), await response.text()).toBeLessThan(300);
   return response.json();
+}
+
+const E2E_DATABASE_URL =
+  process.env["E2E_DATABASE_URL"] ?? "postgresql://lance:lance@localhost:5439/lance_e2e";
+
+/** Makes an account an admin the only way there is: the command line, with database access. */
+export function grantAdmin(email: string): void {
+  execFileSync("npm", ["run", "admin:grant", "-w", "@lance/api", "--", email], {
+    env: { ...process.env, DATABASE_URL: E2E_DATABASE_URL },
+    stdio: "pipe",
+  });
 }
