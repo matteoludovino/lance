@@ -103,6 +103,11 @@ export function OwnerPanel({
           {proposal.status === "submitted" && project.status === "open" ? (
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => setAccepting(proposal)}>Aceitar proposta</Button>
+              {proposal.conversationId ? (
+                <ButtonLink href={`/mensagens/${proposal.conversationId}`} variant="secondary">
+                  Conversar
+                </ButtonLink>
+              ) : null}
               <Button
                 variant="ghost"
                 busy={busy === `decline:${proposal.id}`}

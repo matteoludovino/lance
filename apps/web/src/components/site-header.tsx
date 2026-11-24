@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { setMode, useMode, type Mode } from "@/lib/mode";
@@ -55,6 +56,7 @@ export function SiteHeader() {
         <Link href="/projetos" className="text-sm text-stone-700 hover:text-stone-900">
           Projetos
         </Link>
+        {me ? <MessagesLink /> : null}
         <nav className="ml-auto flex items-center gap-2">
           {isPending ? null : me ? (
             <>
@@ -94,5 +96,26 @@ export function SiteHeader() {
         </div>
       ) : null}
     </header>
+  );
+}
+
+/** "Mensagens", with how many are unread (kept current by the live connection). */
+function MessagesLink() {
+  const { data } = useQuery({
+    queryKey: ["me", "unread"],
+    queryFn: () => api<{ total: number }>("/me/unread"),
+    refetchInterval: 120_000,
+  });
+  const unread = data?.total ?? 0;
+  return (
+    <Link href="/mensagens" className="flex items-center gap-1.5 text-sm text-stone-700 hover:text-stone-900">
+      Mensagens
+      {unread > 0 ? (
+        <span className="rounded-full bg-indigo-600 px-1.5 text-xs font-semibold text-white">
+          {unread}
+          <span className="sr-only"> não lidas</span>
+        </span>
+      ) : null}
+    </Link>
   );
 }

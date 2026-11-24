@@ -11,6 +11,7 @@ import {
   memberSince,
   place,
 } from "@/components/profile-page";
+import { InviteButton } from "@/components/invite-button";
 import { serverGet } from "@/lib/server-api";
 
 export const metadata: Metadata = { title: "Freelancer" };
@@ -42,6 +43,7 @@ async function Freelancer({ params }: { params: PageProps<"/freelancers/[id]">["
           memberSince(profile.memberSince),
         ]}
       />
+      <InviteButton freelancerId={profile.id} name={profile.name} />
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 text-sm shadow-sm">
         <span className="font-medium text-stone-900">
           <Budget cents={profile.minBudgetCents} />

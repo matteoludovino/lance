@@ -59,6 +59,15 @@ export function FreelancerPanel({ project }: { project: ProjectDetail }) {
         </div>
         {failure ? <Notice tone="error">{failure}</Notice> : null}
         <ProposalSummary proposal={proposal} />
+        {proposal.conversationId ? (
+          <ButtonLink
+            href={`/mensagens/${proposal.conversationId}`}
+            variant="secondary"
+            className="justify-self-start"
+          >
+            Conversar com o cliente
+          </ButtonLink>
+        ) : null}
         {proposal.status === "submitted" && open ? (
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setEditing(true)}>
