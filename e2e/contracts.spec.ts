@@ -1,16 +1,4 @@
-import type { Page } from "@playwright/test";
-import { field, newEmail, otherPerson, signUp, expect, test } from "./helpers";
-
-/** The API through the web app, as the signed-in person in that page. */
-async function call(page: Page, method: "POST" | "PUT", path: string, data: object = {}) {
-  const response = await page.request.fetch(`/api${path}`, {
-    method,
-    data,
-    headers: { origin: "http://localhost:3030" },
-  });
-  expect(response.status(), await response.text()).toBeLessThan(300);
-  return response.json();
-}
+import { call, field, newEmail, otherPerson, signUp, expect, test } from "./helpers";
 
 test("deposit, deliver, ask for a revision, deliver again, approve: the freelancer is paid minus the fee", async ({
   page: client,

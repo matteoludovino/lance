@@ -72,3 +72,14 @@ export async function otherPerson(browser: Browser): Promise<Page> {
   });
   return context.newPage();
 }
+
+/** The API through the web app, as the signed-in person in that page. */
+export async function call(page: Page, method: "POST" | "PUT", path: string, data: object = {}) {
+  const response = await page.request.fetch(`/api${path}`, {
+    method,
+    data,
+    headers: { origin: "http://localhost:3030" },
+  });
+  expect(response.status(), await response.text()).toBeLessThan(300);
+  return response.json();
+}
