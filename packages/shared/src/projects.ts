@@ -116,6 +116,8 @@ export interface ProposalView {
   milestones: { title: string; amountCents: number }[];
   freelancer: Person & { headline: string | null };
   submittedAt: string;
+  /** The two people's conversation about this project. */
+  conversationId: string | null;
 }
 
 /** The freelancer's list: their proposals with the project they're for. */

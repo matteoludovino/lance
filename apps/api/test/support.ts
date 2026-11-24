@@ -31,7 +31,7 @@ export async function resetDb(db: PrismaService): Promise<void> {
     db.$executeRawUnsafe(
       `TRUNCATE users, sandboxes, sessions, email_tokens, sent_emails, outbox_events,
         client_profiles, freelancer_profiles, projects, proposals, contracts, contract_milestones,
-        conversations, ledger_entries, ledger_transactions, ledger_accounts, idempotency_keys
+        conversations, messages, ledger_entries, ledger_transactions, ledger_accounts, idempotency_keys
         RESTART IDENTITY CASCADE`,
     ),
   ]);

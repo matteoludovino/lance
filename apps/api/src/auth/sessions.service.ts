@@ -3,6 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { uuidv7 } from "../common/ids.ts";
 import { hashToken, newToken } from "../common/secrets.ts";
 import { ENV, type Env } from "../env.ts";
+import { Hub } from "../realtime/hub.ts";
 import type { Tx } from "../outbox/outbox.service.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
 import { Clock } from "../time/clock.ts";
@@ -24,6 +25,7 @@ export class Sessions {
     private readonly db: PrismaService,
     private readonly clock: Clock,
     @Inject(ENV) private readonly env: Env,
+    private readonly hub: Hub,
   ) {}
 
   /** Creates a session (inside the caller's transaction, if any) and sets its cookie. */
@@ -76,6 +78,7 @@ export class Sessions {
   async end(reply: FastifyReply, sessionId: string): Promise<void> {
     await this.db.session.deleteMany({ where: { id: sessionId } });
     this.clearCookie(reply);
+    this.hub.closeSession(sessionId);
   }
 
   private setCookie(reply: FastifyReply, token: string): void {

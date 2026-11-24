@@ -4,6 +4,7 @@ import type { FastifyReply } from "fastify";
 import { uuidv7 } from "../common/ids.ts";
 import { RateLimiter } from "../common/rate-limiter.ts";
 import { Prisma } from "../generated/prisma/client.ts";
+import { Hub } from "../realtime/hub.ts";
 import { OutboxService } from "../outbox/outbox.service.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
 import { Profiles } from "../profiles/profiles.service.ts";
@@ -42,6 +43,7 @@ export class Accounts {
     private readonly profiles: Profiles,
     private readonly limiter: RateLimiter,
     private readonly clock: Clock,
+    private readonly hub: Hub,
   ) {}
 
   async signup(input: Parsed<SignupInput>, ip: string): Promise<void> {
@@ -152,6 +154,8 @@ export class Accounts {
       return userId;
     });
     if (!userId) throw invalidLink();
+    // Every other session ended: so do their live connections.
+    this.hub.closeUser(userId);
     return this.profiles.me(userId);
   }
 

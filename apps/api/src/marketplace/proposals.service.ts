@@ -267,7 +267,7 @@ export class Proposals {
   async mine(user: AuthUser): Promise<MyProposal[]> {
     const rows = await this.db.proposal.findMany({
       where: { freelancerId: user.id },
-      include: { ...proposalInclude, project: { select: { id: true, title: true, status: true } } },
+      include: proposalInclude,
       orderBy: [{ submittedAt: "desc" }, { id: "desc" }],
     });
     return rows.map(myProposal);

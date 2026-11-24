@@ -43,6 +43,14 @@ export function projectDetail(
 
 export const proposalInclude = {
   freelancer: { select: { id: true, name: true, freelancerProfile: { select: { headline: true } } } },
+  project: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      conversations: { select: { id: true, freelancerId: true } },
+    },
+  },
 } satisfies Prisma.ProposalInclude;
 
 export type ProposalRow = Prisma.ProposalGetPayload<{ include: typeof proposalInclude }>;
@@ -63,11 +71,12 @@ export function proposalView(proposal: ProposalRow): ProposalView {
       headline: proposal.freelancer.freelancerProfile?.headline ?? null,
     },
     submittedAt: proposal.submittedAt.toISOString(),
+    conversationId:
+      proposal.project.conversations.find((c) => c.freelancerId === proposal.freelancerId)?.id ?? null,
   };
 }
 
-export function myProposal(
-  proposal: ProposalRow & { project: { id: string; title: string; status: MyProposal["project"]["status"] } },
-): MyProposal {
-  return { ...proposalView(proposal), project: proposal.project };
+export function myProposal(proposal: ProposalRow): MyProposal {
+  const { id, title, status } = proposal.project;
+  return { ...proposalView(proposal), project: { id, title, status } };
 }

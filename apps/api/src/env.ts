@@ -34,6 +34,11 @@ const schema = z.object({
   PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(10_000).default(1000),
   /** How long a delivery waits for the client before it's paid on its own. Copied into every new contract. */
   AUTO_RELEASE_HOURS: z.coerce.number().int().positive().default(168),
+  /** Where browsers open the WebSocket (in production the API's own wss:// address: the web app's host
+   * doesn't proxy WebSockets). */
+  PUBLIC_WS_URL: z.string().default("ws://localhost:8040/ws"),
+  /** How often idle sockets are pinged; one missed pong and the socket is dropped. */
+  WS_HEARTBEAT_MS: z.coerce.number().int().positive().default(30_000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).default("log"),
 });
 

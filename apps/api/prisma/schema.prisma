@@ -325,20 +325,49 @@ model ContractMilestone {
 /// Client and freelancer talking about a project. It starts with the proposal (messages arrive in
 /// stage 5): one per project and freelancer.
 model Conversation {
-  id           String   @id @db.Uuid
-  projectId    String   @db.Uuid
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  clientId     String   @db.Uuid
-  client       User     @relation("ConversationClient", fields: [clientId], references: [id], onDelete: Cascade)
-  freelancerId String   @db.Uuid
-  freelancer   User     @relation("ConversationFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
-  sandboxId    String?  @db.Uuid
-  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  id                String    @id @db.Uuid
+  projectId         String    @db.Uuid
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId          String    @db.Uuid
+  client            User      @relation("ConversationClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancerId      String    @db.Uuid
+  freelancer        User      @relation("ConversationFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  sandboxId         String?   @db.Uuid
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  /// Messages are numbered 1, 2, 3… with no gaps; this is the last number given.
+  lastSeq           Int       @default(0)
+  lastMessageAt     DateTime? @db.Timestamptz(3)
+  /// The last message each side has read (unread = lastSeq − readSeq; receipts are the other's readSeq).
+  clientReadSeq     Int       @default(0)
+  freelancerReadSeq Int       @default(0)
+  messages          Message[]
 
   @@unique([projectId, freelancerId])
-  @@index([clientId])
-  @@index([freelancerId])
+  @@index([clientId, lastMessageAt(sort: Desc)])
+  @@index([freelancerId, lastMessageAt(sort: Desc)])
   @@map("conversations")
+}
+
+/// A message in a conversation. Sent over REST with an id the browser made up (a resend returns the
+/// first one), numbered by the conversation; pushed to both sides over WebSocket after commit.
+model Message {
+  id              String       @id @db.Uuid
+  conversationId  String       @db.Uuid
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  seq             Int
+  senderId        String       @db.Uuid
+  clientMessageId String       @db.Uuid
+  body            String
+  /// Contact details spotted before a contract (phone, email, outside channel): the sender was warned,
+  /// moderation can review. Delivered normally.
+  contactFlags    String[]
+  /// Set by moderation: hidden from both sides.
+  hiddenAt        DateTime?    @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@unique([conversationId, seq])
+  @@unique([senderId, clientMessageId])
+  @@map("messages")
 }
 
 enum LedgerAccountKind {
