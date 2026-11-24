@@ -31,7 +31,7 @@ export async function resetDb(db: PrismaService): Promise<void> {
     db.$executeRawUnsafe(
       `TRUNCATE users, sandboxes, sessions, email_tokens, sent_emails, outbox_events,
         client_profiles, freelancer_profiles, projects, proposals, contracts, contract_milestones,
-        conversations, messages, ledger_entries, ledger_transactions, ledger_accounts, idempotency_keys
+        conversations, messages, reviews, ledger_entries, ledger_transactions, ledger_accounts, idempotency_keys
         RESTART IDENTITY CASCADE`,
     ),
   ]);
@@ -208,4 +208,16 @@ export async function admin(app: App, sandboxId: string | null = null) {
   const user = await directUser(app, { sandboxId, name: "Admin" });
   await app.get(PrismaService).user.update({ where: { id: user.id }, data: { role: "admin" } });
   return user;
+}
+
+/** A contract carried to the end: every milestone funded, delivered and approved. */
+export async function completed(app: App, options: Parameters<typeof hire>[1] = {}) {
+  const hired = await hire(app, options);
+  const note = { note: "Entrega feita conforme combinado." };
+  for (const id of hired.milestones) {
+    await hired.client.browser.post(`/api/milestones/${id}/fund`);
+    await hired.freelancer.browser.post(`/api/milestones/${id}/submit`, note);
+    await hired.client.browser.post(`/api/milestones/${id}/approve`);
+  }
+  return hired;
 }

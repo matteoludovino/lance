@@ -90,6 +90,8 @@ describe("the milestone lifecycle", () => {
       "milestone_funded",
       "milestone_funded",
       "proposal_accepted",
+      // The contract is complete: time to review.
+      "review_requested",
     ]);
   });
 

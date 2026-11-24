@@ -7,8 +7,10 @@ import { seedMarketplace } from "../src/seed/seed.ts";
 if (existsSync(".env")) process.loadEnvFile(".env");
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env["DATABASE_URL"]! }) });
 try {
-  const { freelancers, clients, projects } = await seedMarketplace(db);
-  console.log(`Seeded ${freelancers} freelancers, ${clients} clients and ${projects} open projects.`);
+  const { freelancers, clients, projects, reviews } = await seedMarketplace(db);
+  console.log(
+    `Seeded ${freelancers} freelancers, ${clients} clients, ${projects} open projects, ${reviews} reviews.`,
+  );
 } finally {
   await db.$disconnect();
 }

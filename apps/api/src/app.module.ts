@@ -3,6 +3,7 @@ import { AccountsModule } from "./auth/accounts.module.ts";
 import { ENV, type Env } from "./env.ts";
 import { ContractsModule } from "./contracts/contracts.module.ts";
 import { MessagingModule } from "./messaging/messaging.module.ts";
+import { ReviewsModule } from "./reviews/reviews.module.ts";
 import { MarketplaceModule } from "./marketplace/marketplace.module.ts";
 import { HealthController } from "./health/health.controller.ts";
 import { CoreModule } from "./outbox/outbox.module.ts";
@@ -23,6 +24,7 @@ export class AppModule {
         MarketplaceModule,
         ContractsModule,
         MessagingModule,
+        ReviewsModule,
       ],
       controllers: [HealthController],
       providers: [{ provide: ENV, useValue: env }],

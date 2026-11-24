@@ -3,6 +3,7 @@ import { clientProfileInput, freelancerProfileInput, projectInput } from "@lance
 import type { PrismaClient } from "../generated/prisma/client.ts";
 import { SEED_CLIENTS, SEED_FREELANCERS } from "./people.ts";
 import { SEED_PROJECTS } from "./projects.ts";
+import { SEED_REVIEWS } from "./reviews.ts";
 
 /** A stable id per seeded person, so seeding again updates instead of duplicating. */
 export function seedId(key: string): string {
@@ -16,7 +17,7 @@ const JOINED = new Date("2025-03-01T12:00:00Z");
 /** Writes the seeded marketplace. Safe to run again: it updates the same people. */
 export async function seedMarketplace(
   db: PrismaClient,
-): Promise<{ freelancers: number; clients: number; projects: number }> {
+): Promise<{ freelancers: number; clients: number; projects: number; reviews: number }> {
   for (const [index, person] of [...SEED_FREELANCERS, ...SEED_CLIENTS].entries()) {
     const id = seedId(person.key);
     const user = {
@@ -65,9 +66,28 @@ export async function seedMarketplace(
       update: row,
     });
   }
+  // History: always revealed, no contract. Reviews can't be edited, so existing ones stay as they are.
+  for (const review of SEED_REVIEWS) {
+    const id = seedId(`review:${review.author}:${review.reviewee}`);
+    await db.review.upsert({
+      where: { id },
+      create: {
+        id,
+        authorId: seedId(review.author),
+        revieweeId: seedId(review.reviewee),
+        revieweeRole: review.role,
+        rating: review.rating,
+        comment: review.comment,
+        sandboxId: null,
+        createdAt: new Date(now - review.daysAgo * 86_400_000),
+      },
+      update: {},
+    });
+  }
   return {
     freelancers: SEED_FREELANCERS.length,
     clients: SEED_CLIENTS.length,
     projects: SEED_PROJECTS.length,
+    reviews: SEED_REVIEWS.length,
   };
 }

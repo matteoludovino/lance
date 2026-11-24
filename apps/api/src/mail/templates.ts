@@ -141,3 +141,19 @@ export function milestoneUpdate(name: string, subject: string, sentence: string,
     footer: NOTICE,
   });
 }
+
+export function reviewUpdate(
+  name: string,
+  subject: string,
+  sentence: string,
+  url: string,
+  label: string,
+): Email {
+  return layout({
+    subject,
+    greeting: `Olá, ${name}!`,
+    paragraphs: [sentence],
+    action: { label, url },
+    footer: NOTICE,
+  });
+}

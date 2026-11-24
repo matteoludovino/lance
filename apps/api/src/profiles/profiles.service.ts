@@ -10,7 +10,9 @@ import type {
 } from "@lance/shared";
 import type { ClientProfile, FreelancerProfile } from "../generated/prisma/client.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
+import { reputations } from "../reviews/reputation.ts";
 import { visibleTo } from "../sandbox/scope.ts";
+import { Clock } from "../time/clock.ts";
 import type { AuthUser } from "../auth/auth-user.ts";
 
 type Parsed<T> = { [K in keyof T]-?: Exclude<T[K], undefined> };
@@ -18,7 +20,10 @@ type Parsed<T> = { [K in keyof T]-?: Exclude<T[K], undefined> };
 /** The two sides of an account, and the public pages built from them. */
 @Injectable()
 export class Profiles {
-  constructor(private readonly db: PrismaService) {}
+  constructor(
+    private readonly db: PrismaService,
+    private readonly clock: Clock,
+  ) {}
 
   async me(userId: string): Promise<Me> {
     const user = await this.db.user.findUniqueOrThrow({
@@ -68,11 +73,13 @@ export class Profiles {
       include: { user: true },
     });
     if (!profile) throw notFound();
+    const reputation = await reputations(this.db, [id], "freelancer", this.clock.now());
     return {
       id: profile.userId,
       name: profile.user.name,
       memberSince: profile.user.createdAt.toISOString(),
       ...freelancerView(profile),
+      reputation: reputation.get(id)!,
     };
   }
 
@@ -82,11 +89,13 @@ export class Profiles {
       include: { user: true },
     });
     if (!profile) throw notFound();
+    const reputation = await reputations(this.db, [id], "client", this.clock.now());
     return {
       id: profile.userId,
       name: profile.user.name,
       memberSince: profile.user.createdAt.toISOString(),
       ...clientView(profile),
+      reputation: reputation.get(id)!,
     };
   }
 

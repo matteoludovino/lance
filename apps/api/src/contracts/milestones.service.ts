@@ -6,7 +6,7 @@ import {
   NotFoundException,
   type OnModuleInit,
 } from "@nestjs/common";
-import { MAX_REVISIONS, type MilestoneActionResult } from "@lance/shared";
+import { MAX_REVISIONS, REVIEW_WINDOW_DAYS, type MilestoneActionResult } from "@lance/shared";
 import type { AuthUser } from "../auth/auth-user.ts";
 import { expectChanged, transaction } from "../common/transactions.ts";
 import type { MilestoneStatus, Prisma } from "../generated/prisma/client.ts";
@@ -14,6 +14,7 @@ import { Ledger, splitFee } from "../ledger/ledger.service.ts";
 import { OutboxService, type Tx } from "../outbox/outbox.service.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
 import { Scheduler } from "../scheduler/scheduler.service.ts";
+import { REVIEW_EVENTS } from "../reviews/reviews.service.ts";
 import { Clock } from "../time/clock.ts";
 import { Idempotency, Replayed, type IdempotencyRequest } from "./idempotency.ts";
 
@@ -377,5 +378,19 @@ export class Milestones implements OnModuleInit {
       where: { id: contract.projectId },
       data: { status: paid ? "completed" : "cancelled" },
     });
+    if (paid) {
+      // Reviews open now: both are invited, and when the window closes a lone review is revealed.
+      const sandboxId = contract.sandboxId;
+      await this.outbox.add(tx, REVIEW_EVENTS.requested, { contractId }, { sandboxId });
+      await this.outbox.add(
+        tx,
+        REVIEW_EVENTS.windowClosed,
+        { contractId },
+        {
+          sandboxId,
+          dueAt: new Date(now.getTime() + REVIEW_WINDOW_DAYS * 24 * HOUR),
+        },
+      );
+    }
   }
 }

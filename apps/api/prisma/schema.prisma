@@ -73,6 +73,8 @@ model User {
   proposals               Proposal[]
   clientContracts         Contract[]         @relation("ContractClient")
   freelancerContracts     Contract[]         @relation("ContractFreelancer")
+  reviewsWritten          Review[]           @relation("ReviewAuthor")
+  reviewsReceived         Review[]           @relation("ReviewReviewee")
   clientConversations     Conversation[]     @relation("ConversationClient")
   freelancerConversations Conversation[]     @relation("ConversationFreelancer")
 
@@ -286,6 +288,7 @@ model Contract {
   createdAt        DateTime            @default(now()) @db.Timestamptz(3)
   completedAt      DateTime?           @db.Timestamptz(3)
   milestones       ContractMilestone[]
+  reviews          Review[]
 
   @@index([clientId])
   @@index([freelancerId])
@@ -450,4 +453,34 @@ model IdempotencyKey {
 
   @@id([userId, key])
   @@map("idempotency_keys")
+}
+
+enum ReviewRole {
+  client
+  freelancer
+}
+
+/// What one side of a finished contract says about the other: once each, unchangeable (a trigger allows
+/// only moderation's hiddenAt), within 14 days of the contract ending. Double-blind: nobody sees the
+/// other side's review until both wrote theirs or the 14 days are over, and only revealed reviews count
+/// in averages. Seeded reviews (the seeded marketplace's history) have no contract and are revealed.
+model Review {
+  id           String     @id @db.Uuid
+  contractId   String?    @db.Uuid
+  contract     Contract?  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  authorId     String     @db.Uuid
+  author       User       @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  revieweeId   String     @db.Uuid
+  reviewee     User       @relation("ReviewReviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+  /// The side the reviewee was on: a freelancer's reviews are about their work, a client's about hiring.
+  revieweeRole ReviewRole
+  rating       Int
+  comment      String
+  sandboxId    String?    @db.Uuid
+  hiddenAt     DateTime?  @db.Timestamptz(3)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@unique([contractId, authorId])
+  @@index([revieweeId, revieweeRole])
+  @@map("reviews")
 }
