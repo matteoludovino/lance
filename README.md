@@ -14,7 +14,11 @@ when each delivery is approved, both sides review each other, and they talk in r
 - **Two sides, one account.** A client profile (who is hiring) and a freelancer profile (what they do,
   skills from a fixed catalog, "projects from R$ …", availability), with public pages. A header switch
   shows one side or the other; the API checks ownership either way.
-- **Seeded marketplace.** Twelve freelancers and five clients, fictional, so the market isn't empty.
+- **Projects and proposals.** Clients publish fixed-price projects with a budget range; freelancers
+  answer with a proposal split into milestones (its price is their sum), and can change or withdraw it
+  while it's open. The client compares them and hires one, which creates the contract.
+- **Seeded marketplace.** Twelve freelancers, five clients and eight open projects, fictional, so the
+  market isn't empty.
 
 ## Architecture
 
@@ -38,6 +42,10 @@ A few rules every later feature builds on:
   are minted when the email is sent, expire, and work once even when clicked twice at the same moment.
 - **Demo isolation.** Everything a person writes carries a `sandbox_id`. Every read goes through one
   rule: the seeded marketplace plus the viewer's own sandbox, never another visitor's.
+- **State changes** are conditional updates (`UPDATE … WHERE status IN (…)`; no row changed means
+  someone got there first, a 409). Hiring is one transaction that locks the project, accepts the proposal
+  at the version the client saw, declines the rest and creates the contract; one contract per project is
+  also a unique index. Tests race two acceptances, and acceptance against withdrawal.
 - **Time** comes from an injectable clock, and side effects (email, and later delayed rules) go through
   a transactional outbox drained by a scheduler inside the API: no external queue for a free-plan
   server that sleeps.
@@ -67,7 +75,7 @@ npm run dev                        # API on :8040, web on http://localhost:3030
 
 1. ✅ Monorepo, NestJS API, Next.js web, CI (minimal deploy pending)
 2. ✅ Accounts, sessions, email verification, client and freelancer profiles, demo sandboxing
-3. Projects and proposals
+3. ✅ Projects and proposals
 4. Contracts, milestones and the simulated escrow ledger
 5. Real-time messaging
 6. Double-blind reviews and reputation
