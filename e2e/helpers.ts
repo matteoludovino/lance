@@ -1,4 +1,5 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Browser, type Page } from "@playwright/test";
+import { CLIENT_IP } from "../playwright.config";
 
 const MAILPIT = process.env["MAILPIT_URL"] ?? "http://localhost:8025";
 export const PASSWORD = "senha-boa-123";
@@ -49,4 +50,14 @@ export async function signUp(page: Page, name: string, email: string) {
   await page.goto(await emailedLink(email, "Confirme seu e-mail"));
   await expect(page.getByRole("heading", { name: `Olá, ${name.split(" ")[0]}!` })).toBeVisible();
   await expect(page).toHaveURL("/painel");
+}
+
+/** A second person: a browser context of their own (own cookies), from the same client address. */
+export async function otherPerson(browser: Browser): Promise<Page> {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:3030",
+    locale: "pt-BR",
+    extraHTTPHeaders: { "x-forwarded-for": CLIENT_IP },
+  });
+  return context.newPage();
 }

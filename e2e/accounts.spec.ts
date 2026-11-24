@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { seedId } from "../apps/api/src/seed/seed.ts";
-import { PASSWORD, emailedLink, field, newEmail, signUp } from "./helpers";
+import { PASSWORD, emailedLink, field, newEmail, otherPerson, signUp } from "./helpers";
 
 test("sign up, confirm by email, build a freelancer profile and see it as a visitor", async ({
   page,
@@ -31,7 +31,7 @@ test("sign up, confirm by email, build a freelancer profile and see it as a visi
   await expect(page.getByRole("status").filter({ hasText: "Salvo." })).toBeVisible();
 
   const publicUrl = await page.getByRole("link", { name: "Ver página pública" }).getAttribute("href");
-  const visitor = await (await browser.newContext()).newPage();
+  const visitor = await otherPerson(browser);
   await visitor.goto(publicUrl!);
   await expect(visitor.getByRole("heading", { name: "Carla Dias" })).toBeVisible();
   await expect(visitor.getByText("Projetos a partir de R$ 1.800,50")).toBeVisible();
@@ -44,7 +44,7 @@ test("a new password, from the emailed link, signs out every other browser", asy
   const email = newEmail("bruno");
   await signUp(page, "Bruno Lima", email);
 
-  const other = await (await browser.newContext()).newPage();
+  const other = await otherPerson(browser);
   await other.goto("/entrar");
   await field(other, "E-mail").fill(email);
   await field(other, "Senha").fill("senha-errada");
