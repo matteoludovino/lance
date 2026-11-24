@@ -24,8 +24,12 @@ when each delivery is approved, both sides review each other, and they talk in r
 - **Messages in real time.** Client and freelancer talk about a project from the first proposal (or
   a client's invitation): live delivery, "typing…", unread counts and read receipts. Before a contract,
   contact details (phone, email, WhatsApp…) get a warning about leaving the platform's protection.
-- **Seeded marketplace.** Twelve freelancers, five clients and eight open projects, fictional, so the
-  market isn't empty.
+- **Double-blind reviews.** After a contract with a paid milestone, each side reviews the other once,
+  within 14 days. Neither sees the other's review until both wrote or the 14 days are over, so nobody
+  rates in retaliation. Reputation counts revealed reviews only; ranking (next stage) will use a
+  Bayesian average so one perfect review doesn't beat fifty very good ones.
+- **Seeded marketplace.** Twelve freelancers, five clients, eight open projects and a review history,
+  all fictional, so the market isn't empty.
 
 ## Architecture
 
@@ -65,6 +69,11 @@ A few rules every later feature builds on:
   harmless. Only after commit are they pushed over a WebSocket that never takes writes (except
   "typing"). The socket opens with a one-time ticket from the same-origin API, because in production it
   goes straight to the API's host; every reconnection refetches what may have been missed.
+- **Double-blind as a query condition.** A review is visible when both sides wrote or the window closed:
+  a condition in every query (lists and averages alike), not a flag a job flips, so time passing
+  changes nothing in the database and nothing can be revealed twice or missed. Reviews can't be edited
+  (a trigger allows only moderation's hidden flag), and a person's numbers count only reviews from their
+  own corner of the marketplace, so demo visitors never move a seeded freelancer's rating.
 - **Time** comes from an injectable clock, and side effects (email, and later delayed rules) go through
   a transactional outbox drained by a scheduler inside the API: no external queue for a free-plan
   server that sleeps.
@@ -97,7 +106,7 @@ npm run dev                        # API on :8040, web on http://localhost:3030
 3. ✅ Projects and proposals
 4. ✅ Contracts, milestones and the simulated escrow ledger
 5. ✅ Real-time messaging
-6. Double-blind reviews and reputation
+6. ✅ Double-blind reviews and reputation
 7. Search in Portuguese (full text, filters, facets)
 8. Moderation and email notifications
 9. One-click demo with simulated activity, end-to-end tests, final deploy
