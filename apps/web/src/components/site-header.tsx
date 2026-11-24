@@ -52,6 +52,9 @@ export function SiteHeader() {
             ))}
           </div>
         ) : null}
+        <Link href="/projetos" className="text-sm text-stone-700 hover:text-stone-900">
+          Projetos
+        </Link>
         <nav className="ml-auto flex items-center gap-2">
           {isPending ? null : me ? (
             <>

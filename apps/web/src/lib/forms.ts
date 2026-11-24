@@ -46,3 +46,11 @@ export function serverFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ApiFailure)) return {};
   return Object.fromEntries(error.fields.map((field) => [field.path.split(".")[0], "Confira este campo."]));
 }
+
+/** The same errors without one field's (it changed, so its old error no longer applies). */
+export function without(errors: FieldErrors, field: string): FieldErrors {
+  if (!(field in errors)) return errors;
+  const rest = { ...errors };
+  delete rest[field];
+  return rest;
+}
