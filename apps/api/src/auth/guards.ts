@@ -9,7 +9,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ENV, type Env } from "../env.ts";
-import { IS_PUBLIC } from "./auth-user.ts";
+import { ANY_ORIGIN, IS_PUBLIC } from "./auth-user.ts";
 import { Sessions } from "./sessions.service.ts";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -20,11 +20,17 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  */
 @Injectable()
 export class OriginGuard implements CanActivate {
-  constructor(@Inject(ENV) private readonly env: Env) {}
+  constructor(
+    @Inject(ENV) private readonly env: Env,
+    private readonly reflector: Reflector,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<FastifyRequest>();
     if (SAFE_METHODS.has(request.method)) return true;
+    if (this.reflector.getAllAndOverride<boolean>(ANY_ORIGIN, [context.getHandler(), context.getClass()])) {
+      return true;
+    }
     if (this.env.WEB_ORIGINS.includes(request.headers.origin ?? "")) return true;
     throw new ForbiddenException({ code: "forbidden_origin", message: "Origem não permitida." });
   }

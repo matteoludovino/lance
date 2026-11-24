@@ -24,3 +24,5 @@ services:
         sync: false # wss://<this service>.onrender.com/ws (browsers open the socket straight here)
       - key: SMTP_URL
         sync: false # optional: without it, emails are kept in the database (sent_emails)
+      - key: SIGNING_SECRET
+        generateValue: true # signs unsubscribe links; Render makes a random one, never in the repository

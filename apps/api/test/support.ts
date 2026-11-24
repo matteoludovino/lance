@@ -28,10 +28,11 @@ export async function resetDb(db: PrismaService): Promise<void> {
   // transaction only).
   await db.$transaction([
     db.$executeRawUnsafe(`SELECT set_config('lance.ledger_purge', 'on', true)`),
+    db.$executeRawUnsafe(`SELECT set_config('lance.purge', 'on', true)`),
     db.$executeRawUnsafe(
       `TRUNCATE users, sandboxes, sessions, email_tokens, sent_emails, outbox_events,
         client_profiles, freelancer_profiles, projects, proposals, contracts, contract_milestones,
-        conversations, messages, reviews, ledger_entries, ledger_transactions, ledger_accounts, idempotency_keys
+        conversations, messages, reviews, reports, audit_entries, pending_digests, ledger_entries, ledger_transactions, ledger_accounts, idempotency_keys
         RESTART IDENTITY CASCADE`,
     ),
   ]);

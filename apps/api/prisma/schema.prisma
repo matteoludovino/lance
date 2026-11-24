@@ -64,6 +64,8 @@ model User {
   sandbox                 Sandbox?           @relation(fields: [sandboxId], references: [id], onDelete: Cascade)
   /// Set by moderation: can't sign in, and disappears from every listing.
   suspendedAt             DateTime?          @db.Timestamptz(3)
+  /// Email categories this person turned off (account and moderation emails can't be).
+  emailOptOuts            String[]           @default([])
   createdAt               DateTime           @default(now()) @db.Timestamptz(3)
   sessions                Session[]
   emailTokens             EmailToken[]
@@ -77,6 +79,8 @@ model User {
   reviewsReceived         Review[]           @relation("ReviewReviewee")
   clientConversations     Conversation[]     @relation("ConversationClient")
   freelancerConversations Conversation[]     @relation("ConversationFreelancer")
+  reportsMade             Report[]           @relation("ReportReporter")
+  pendingDigests          PendingDigest[]
 
   @@index([sandboxId])
   @@map("users")
@@ -336,22 +340,23 @@ model ContractMilestone {
 /// Client and freelancer talking about a project. It starts with the proposal (messages arrive in
 /// stage 5): one per project and freelancer.
 model Conversation {
-  id                String    @id @db.Uuid
-  projectId         String    @db.Uuid
-  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  clientId          String    @db.Uuid
-  client            User      @relation("ConversationClient", fields: [clientId], references: [id], onDelete: Cascade)
-  freelancerId      String    @db.Uuid
-  freelancer        User      @relation("ConversationFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
-  sandboxId         String?   @db.Uuid
-  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  id                String          @id @db.Uuid
+  projectId         String          @db.Uuid
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId          String          @db.Uuid
+  client            User            @relation("ConversationClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancerId      String          @db.Uuid
+  freelancer        User            @relation("ConversationFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  sandboxId         String?         @db.Uuid
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
   /// Messages are numbered 1, 2, 3… with no gaps; this is the last number given.
-  lastSeq           Int       @default(0)
-  lastMessageAt     DateTime? @db.Timestamptz(3)
+  lastSeq           Int             @default(0)
+  lastMessageAt     DateTime?       @db.Timestamptz(3)
   /// The last message each side has read (unread = lastSeq − readSeq; receipts are the other's readSeq).
-  clientReadSeq     Int       @default(0)
-  freelancerReadSeq Int       @default(0)
+  clientReadSeq     Int             @default(0)
+  freelancerReadSeq Int             @default(0)
   messages          Message[]
+  pendingDigests    PendingDigest[]
 
   @@unique([projectId, freelancerId])
   @@index([clientId, lastMessageAt(sort: Desc)])
@@ -491,4 +496,86 @@ model Review {
   @@unique([contractId, authorId])
   @@index([revieweeId, revieweeRole])
   @@map("reviews")
+}
+
+enum ReportTarget {
+  project
+  /// A person: both sides of their account.
+  profile
+  message
+  review
+}
+
+enum ReportReason {
+  spam
+  fraud
+  offensive
+  /// Contact details or payment outside the platform (also raised automatically for flagged messages).
+  off_platform
+  other
+}
+
+enum ReportStatus {
+  open
+  /// Moderation hid the content or suspended its author.
+  actioned
+  dismissed
+}
+
+/// Someone (or the system, for flagged messages) asking moderation to look at something. One per
+/// person and target. `sandboxId` is the reporter's corner (whose admins see it); admins act only on
+/// targets of their own corner.
+model Report {
+  id           String       @id @db.Uuid
+  reporterId   String?      @db.Uuid
+  reporter     User?        @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType   ReportTarget
+  targetId     String       @db.Uuid
+  /// Who wrote or owns the target: the person a suspension applies to.
+  targetUserId String       @db.Uuid
+  reason       ReportReason
+  details      String?
+  status       ReportStatus @default(open)
+  sandboxId    String?      @db.Uuid
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  resolvedAt   DateTime?    @db.Timestamptz(3)
+  resolvedById String?      @db.Uuid
+  /// What was done: hidden, suspended or dismissed.
+  resolution   String?      @db.VarChar(20)
+  note         String?
+
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@map("reports")
+}
+
+/// What admins did and read, append-only (the database refuses changes; see the migration).
+model AuditEntry {
+  id         String   @id @db.Uuid
+  actorId    String   @db.Uuid
+  action     String   @db.VarChar(60)
+  targetType String   @db.VarChar(30)
+  targetId   String?  @db.Uuid
+  details    Json     @default("{}")
+  sandboxId  String?  @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([sandboxId, createdAt(sort: Desc)])
+  @@map("audit_entries")
+}
+
+/// An unread-messages email waiting to go: at most one per person and conversation. Turned into an
+/// outbox event when due, and sent only if the messages are still unread then.
+model PendingDigest {
+  userId         String       @db.Uuid
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  dueAt          DateTime     @db.Timestamptz(3)
+  sandboxId      String?      @db.Uuid
+
+  @@id([userId, conversationId])
+  @@index([dueAt])
+  @@map("pending_digests")
 }

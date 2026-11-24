@@ -1,46 +1,58 @@
 import { z } from "zod";
 
-const schema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  PORT: z.coerce.number().int().positive().default(8040),
-  HOST: z.string().default("0.0.0.0"),
-  DATABASE_URL: z.string().min(1),
-  /** Exact origins allowed to call the API and open the WebSocket (comma-separated). */
-  WEB_ORIGINS: z
-    .string()
-    .default("http://localhost:3030")
-    .transform((value) =>
-      value
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter(Boolean),
-    ),
-  /** Behind the web app's rewrite and the platform's proxy: trust X-Forwarded-For for client addresses. */
-  TRUST_PROXY: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
-  /** Run time-based work in this process (off in tests, which drive it by hand). */
-  SCHEDULER: z
-    .enum(["on", "off"])
-    .default("on")
-    .transform((value) => value === "on"),
-  /** The web app's public address, for links in emails. */
-  WEB_URL: z.url().default("http://localhost:3030"),
-  /** Where email goes (smtp://localhost:1025 is Mailpit). Unset: emails are only kept in the database. */
-  SMTP_URL: z.url().optional(),
-  MAIL_FROM: z.string().default("Lance <nao-responda@lance.local>"),
-  /** The platform's fee, in basis points of each milestone (1000 = 10%). Copied into every new contract. */
-  PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(10_000).default(1000),
-  /** How long a delivery waits for the client before it's paid on its own. Copied into every new contract. */
-  AUTO_RELEASE_HOURS: z.coerce.number().int().positive().default(168),
-  /** Where browsers open the WebSocket (in production the API's own wss:// address: the web app's host
-   * doesn't proxy WebSockets). */
-  PUBLIC_WS_URL: z.string().default("ws://localhost:8040/ws"),
-  /** How often idle sockets are pinged; one missed pong and the socket is dropped. */
-  WS_HEARTBEAT_MS: z.coerce.number().int().positive().default(30_000),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).default("log"),
-});
+const schema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    PORT: z.coerce.number().int().positive().default(8040),
+    HOST: z.string().default("0.0.0.0"),
+    DATABASE_URL: z.string().min(1),
+    /** Exact origins allowed to call the API and open the WebSocket (comma-separated). */
+    WEB_ORIGINS: z
+      .string()
+      .default("http://localhost:3030")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((origin) => origin.trim())
+          .filter(Boolean),
+      ),
+    /** Behind the web app's rewrite and the platform's proxy: trust X-Forwarded-For for client addresses. */
+    TRUST_PROXY: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    /** Run time-based work in this process (off in tests, which drive it by hand). */
+    SCHEDULER: z
+      .enum(["on", "off"])
+      .default("on")
+      .transform((value) => value === "on"),
+    /** The web app's public address, for links in emails. */
+    WEB_URL: z.url().default("http://localhost:3030"),
+    /** Where email goes (smtp://localhost:1025 is Mailpit). Unset: emails are only kept in the database. */
+    SMTP_URL: z.url().optional(),
+    MAIL_FROM: z.string().default("Lance <nao-responda@lance.local>"),
+    /** The platform's fee, in basis points of each milestone (1000 = 10%). Copied into every new contract. */
+    PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(10_000).default(1000),
+    /** How long a delivery waits for the client before it's paid on its own. Copied into every new contract. */
+    AUTO_RELEASE_HOURS: z.coerce.number().int().positive().default(168),
+    /** Where browsers open the WebSocket (in production the API's own wss:// address: the web app's host
+     * doesn't proxy WebSockets). */
+    PUBLIC_WS_URL: z.string().default("ws://localhost:8040/ws"),
+    /** How often idle sockets are pinged; one missed pong and the socket is dropped. */
+    WS_HEARTBEAT_MS: z.coerce.number().int().positive().default(30_000),
+    LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).default("log"),
+    /** Signs links that act without a session (unsubscribing from an email category). Required in
+     * production; elsewhere a fixed development value. */
+    SIGNING_SECRET: z.string().min(32).optional(),
+  })
+  .refine((env) => env.NODE_ENV !== "production" || env.SIGNING_SECRET, {
+    path: ["SIGNING_SECRET"],
+    message: "required in production (at least 32 characters)",
+  })
+  .transform((env) => ({
+    ...env,
+    SIGNING_SECRET: env.SIGNING_SECRET ?? "development-only-signing-secret-not-for-production",
+  }));
 
 export type Env = z.infer<typeof schema>;
 

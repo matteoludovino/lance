@@ -5,6 +5,26 @@ export interface Email {
   html: string;
 }
 
+/** Where the mailer puts the unsubscribe line in an email people can turn off (removed otherwise). */
+export const UNSUBSCRIBE_SLOT = "<!--unsubscribe-->";
+
+/** Adds "stop these emails" links to an email, or just removes the slot. */
+export function withUnsubscribe(
+  email: Email,
+  links: { label: string; unsubscribe: string; preferences: string } | null,
+): Email {
+  if (!links) return { ...email, html: email.html.replace(UNSUBSCRIBE_SLOT, "") };
+  const line = `Não quer mais receber e-mails de ${links.label.toLowerCase()}?`;
+  return {
+    ...email,
+    text: `${email.text}\n${line} Descadastrar: ${links.unsubscribe}\nTodas as preferências: ${links.preferences}`,
+    html: email.html.replace(
+      UNSUBSCRIBE_SLOT,
+      `<p style="font-size:13px;color:#60646c;margin:8px 0 0">${escape(line)} <a href="${escape(links.unsubscribe)}" style="color:#4f46e5">Descadastrar</a> · <a href="${escape(links.preferences)}" style="color:#4f46e5">Preferências de e-mail</a></p>`,
+    ),
+  };
+}
+
 const escape = (value: string) => value.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 
 /** One simple layout: a greeting, paragraphs, at most one button, a footer. */
@@ -41,6 +61,7 @@ ${
     : ""
 }
 <p style="font-size:13px;color:#60646c;margin:32px 0 0;border-top:1px solid #e0e1e6;padding-top:16px">${escape(footer)}</p>
+${UNSUBSCRIBE_SLOT}
 </div></body></html>`;
   return { subject, text, html };
 }
@@ -154,6 +175,33 @@ export function reviewUpdate(
     greeting: `Olá, ${name}!`,
     paragraphs: [sentence],
     action: { label, url },
+    footer: NOTICE,
+  });
+}
+
+/** Moderation hid something of theirs, or suspended their account. Always sent (not a preference). */
+export function moderationNotice(name: string, subject: string, paragraphs: string[]): Email {
+  return layout({
+    subject,
+    greeting: `Olá, ${name}!`,
+    paragraphs,
+    footer: "Você recebe este e-mail porque a moderação do Lance tomou uma decisão sobre a sua conta.",
+  });
+}
+
+/** Messages someone hasn't read for a while, in one email per conversation. */
+export function messageDigest(
+  name: string,
+  subject: string,
+  sentence: string,
+  excerpt: string,
+  url: string,
+): Email {
+  return layout({
+    subject,
+    greeting: `Olá, ${name}!`,
+    paragraphs: [sentence, `“${excerpt}”`],
+    action: { label: "Responder", url },
     footer: NOTICE,
   });
 }

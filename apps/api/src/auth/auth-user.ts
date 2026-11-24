@@ -22,6 +22,13 @@ export const IS_PUBLIC = "lance:public";
 /** The route answers anyone; the signed-in user, if any, is still available through `@Viewer()`. */
 export const Public = () => SetMetadata(IS_PUBLIC, true);
 
+export const ANY_ORIGIN = "lance:any-origin";
+/**
+ * A state-changing route that may be called from anywhere (no Origin check): only for requests that
+ * carry their own proof, like a signed one-click unsubscribe link posted by an email client.
+ */
+export const AnyOrigin = () => SetMetadata(ANY_ORIGIN, true);
+
 /** The signed-in user (on routes that aren't public, there always is one). */
 export const CurrentUser = createParamDecorator(
   (_: unknown, context: ExecutionContext): AuthUser =>
