@@ -212,7 +212,11 @@ describe("automatic release", () => {
   });
 });
 
-describe("races", () => {
+// Each race repeats a full contract several times over (6-8 rounds), to give a bad interleaving a
+// chance to show: more than the default 5 s per test.
+const REPEATED = { timeout: 20_000 };
+
+describe("races", REPEATED, () => {
   it("approval, automatic release, revision and dispute at once: one payment at most, never mixed", async () => {
     for (let round = 0; round < 6; round++) {
       await resetDb(db);
@@ -269,7 +273,7 @@ describe("races", () => {
   });
 });
 
-describe("settling a contract", () => {
+describe("settling a contract", REPEATED, () => {
   it("happens even when its last two milestones end at the same moment without any money", async () => {
     // Nothing shared in the ledger serializes these two: only the contract lock does.
     for (let round = 0; round < 8; round++) {
