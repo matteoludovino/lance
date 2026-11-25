@@ -15,6 +15,7 @@ import { PrismaService } from "../prisma/prisma.service.ts";
 import { searchProjects } from "../search/projects.ts";
 import { visibleTo } from "../sandbox/scope.ts";
 import { Clock } from "../time/clock.ts";
+import { DEMO_EVENTS } from "../demo/events.ts";
 import { MARKET_EVENTS } from "./marketplace-emails.ts";
 import { projectDetail, projectInclude, projectSummary, proposalInclude, proposalView } from "./views.ts";
 
@@ -42,17 +43,21 @@ export class Projects {
     const now = this.clock.now();
     const { publish, ...fields } = input;
     const id = uuidv7(now.getTime());
-    await this.db.project.create({
-      data: {
-        id,
-        clientId: user.id,
-        sandboxId: user.sandboxId,
-        ...this.columns(fields),
-        status: publish ? "open" : "draft",
-        publishedAt: publish ? now : null,
-        createdAt: now,
-      },
+    await this.db.$transaction(async (tx) => {
+      await tx.project.create({
+        data: {
+          id,
+          clientId: user.id,
+          sandboxId: user.sandboxId,
+          ...this.columns(fields),
+          status: publish ? "open" : "draft",
+          publishedAt: publish ? now : null,
+          createdAt: now,
+        },
+      });
+      if (publish) await this.announce(tx, user, id);
     });
+    this.outbox.committed();
     return this.detail(user, id);
   }
 
@@ -69,12 +74,22 @@ export class Projects {
 
   async publish(user: AuthUser, id: string): Promise<ProjectDetail> {
     await this.owned(user, id);
-    const { count } = await this.db.project.updateMany({
-      where: { id, status: "draft" },
-      data: { status: "open", publishedAt: this.clock.now() },
+    await this.db.$transaction(async (tx) => {
+      const { count } = await tx.project.updateMany({
+        where: { id, status: "draft" },
+        data: { status: "open", publishedAt: this.clock.now() },
+      });
+      expectChanged(count, { code: "not_draft", message: "Este projeto já foi publicado ou encerrado." });
+      await this.announce(tx, user, id);
     });
-    expectChanged(count, { code: "not_draft", message: "Este projeto já foi publicado ou encerrado." });
+    this.outbox.committed();
     return this.detail(user, id);
+  }
+
+  /** In a demo, a newly published project wakes the seeded freelancers (see demo/bots.ts). */
+  private async announce(tx: Tx, user: AuthUser, projectId: string): Promise<void> {
+    if (!user.sandboxId) return;
+    await this.outbox.add(tx, DEMO_EVENTS.projectPublished, { projectId }, { sandboxId: user.sandboxId });
   }
 
   /** Closing without hiring: every proposal still in the running is declined (and told so). */

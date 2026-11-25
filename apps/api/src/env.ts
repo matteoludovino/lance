@@ -41,6 +41,8 @@ const schema = z
     /** How often idle sockets are pinged; one missed pong and the socket is dropped. */
     WS_HEARTBEAT_MS: z.coerce.number().int().positive().default(30_000),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).default("log"),
+    /** Demo sandboxes alive at once, across all visitors (each lasts a day). */
+    DEMO_MAX_SANDBOXES: z.coerce.number().int().positive().default(200),
     /** Signs links that act without a session (unsubscribing from an email category). Required in
      * production; elsewhere a fixed development value. */
     SIGNING_SECRET: z.string().min(32).optional(),

@@ -8,7 +8,7 @@ import { AccountEmails } from "./account-emails.ts";
 import { Accounts } from "./accounts.service.ts";
 import { AuthController } from "./auth.controller.ts";
 import { EmailTokens } from "./email-tokens.ts";
-import { OriginGuard, SessionGuard } from "./guards.ts";
+import { DemoLimitGuard, OriginGuard, SessionGuard } from "./guards.ts";
 import { Passwords } from "./passwords.ts";
 import { Sessions } from "./sessions.service.ts";
 
@@ -19,6 +19,7 @@ import { Sessions } from "./sessions.service.ts";
   providers: [
     { provide: APP_GUARD, useClass: OriginGuard },
     { provide: APP_GUARD, useClass: SessionGuard },
+    { provide: APP_GUARD, useClass: DemoLimitGuard },
     Accounts,
     AccountEmails,
     EmailTokens,

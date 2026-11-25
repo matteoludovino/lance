@@ -2,6 +2,7 @@ import { type DynamicModule, Module } from "@nestjs/common";
 import { AccountsModule } from "./auth/accounts.module.ts";
 import { ENV, type Env } from "./env.ts";
 import { ContractsModule } from "./contracts/contracts.module.ts";
+import { DemoModule } from "./demo/demo.module.ts";
 import { MessagingModule } from "./messaging/messaging.module.ts";
 import { ModerationModule } from "./moderation/moderation.module.ts";
 import { ReviewsModule } from "./reviews/reviews.module.ts";
@@ -27,6 +28,7 @@ export class AppModule {
         MessagingModule,
         ReviewsModule,
         ModerationModule,
+        DemoModule,
       ],
       controllers: [HealthController],
       providers: [{ provide: ENV, useValue: env }],

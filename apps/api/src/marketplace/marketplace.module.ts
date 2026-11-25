@@ -11,5 +11,6 @@ import { Proposals } from "./proposals.service.ts";
   imports: [MailModule],
   controllers: [ProjectsController, ProposalsController],
   providers: [Projects, Proposals, MarketplaceEmails],
+  exports: [Projects, Proposals],
 })
 export class MarketplaceModule {}

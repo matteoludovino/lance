@@ -10,5 +10,6 @@ import { Digests } from "./digests.ts";
   imports: [MailModule],
   controllers: [ConversationsController],
   providers: [Conversations, Gateway, Digests],
+  exports: [Conversations],
 })
 export class MessagingModule {}

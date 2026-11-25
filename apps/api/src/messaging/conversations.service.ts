@@ -11,7 +11,9 @@ import { uuidv7 } from "../common/ids.ts";
 import { isUniqueViolation, transaction } from "../common/transactions.ts";
 import type { Message, Prisma } from "../generated/prisma/client.ts";
 import { PrismaService } from "../prisma/prisma.service.ts";
+import { BOT_DELAYS_MS, DEMO_EVENTS } from "../demo/events.ts";
 import { reportFlaggedMessage } from "../moderation/reports.service.ts";
+import { OutboxService } from "../outbox/outbox.service.ts";
 import { Hub } from "../realtime/hub.ts";
 import { Scheduler } from "../scheduler/scheduler.service.ts";
 import { visibleTo } from "../sandbox/scope.ts";
@@ -23,8 +25,8 @@ const NOT_FOUND = { code: "not_found", message: "Conversa não encontrada." };
 
 const include = {
   project: { select: { id: true, title: true, contract: { select: { id: true, freelancerId: true } } } },
-  client: { select: { id: true, name: true } },
-  freelancer: { select: { id: true, name: true } },
+  client: { select: { id: true, name: true, sandboxId: true } },
+  freelancer: { select: { id: true, name: true, sandboxId: true } },
 } satisfies Prisma.ConversationInclude;
 
 type Row = Prisma.ConversationGetPayload<{ include: typeof include }>;
@@ -41,6 +43,7 @@ export class Conversations {
     private readonly hub: Hub,
     private readonly clock: Clock,
     private readonly scheduler: Scheduler,
+    private readonly outbox: OutboxService,
   ) {}
 
   async list(user: AuthUser): Promise<ConversationSummary[]> {
@@ -140,6 +143,16 @@ export class Conversations {
           },
         });
         if (flags.length > 0) await reportFlaggedMessage(tx, created, row.sandboxId);
+        // In a demo, a seeded person answers (see demo/bots.ts).
+        const other = isClient ? row.freelancer : row.client;
+        if (user.sandboxId && other.sandboxId === null) {
+          await this.outbox.add(
+            tx,
+            DEMO_EVENTS.reply,
+            { conversationId: id, botId: other.id },
+            { dueAt: new Date(now.getTime() + BOT_DELAYS_MS.reply), sandboxId: user.sandboxId },
+          );
+        }
         await queueDigest(tx, {
           userId: isClient ? row.freelancerId : row.clientId,
           conversationId: id,
@@ -266,11 +279,16 @@ function summary(user: AuthUser, row: Row, last: Message | null): ConversationSu
   return {
     id: row.id,
     project: { id: row.project.id, title: row.project.title },
-    other: isClient ? row.freelancer : row.client,
+    // Who they're talking to: a name, never more.
+    other: person(isClient ? row.freelancer : row.client),
     role: isClient ? "client" : "freelancer",
     lastMessage: last
       ? { body: last.body.slice(0, 140), fromMe: last.senderId === user.id, at: last.createdAt.toISOString() }
       : null,
     unread: row.lastSeq - (isClient ? row.clientReadSeq : row.freelancerReadSeq),
   };
+}
+
+function person({ id, name }: { id: string; name: string }): { id: string; name: string } {
+  return { id, name };
 }
