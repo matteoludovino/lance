@@ -4,10 +4,22 @@ A two-sided marketplace for digital freelance work: clients post projects, freel
 client hires one under a contract split into milestones, payment is held in (simulated) escrow and released
 when each delivery is approved, both sides review each other, and they talk in real time.
 
-> **Status:** being built in stages (see the roadmap). The interface is in Brazilian Portuguese; code, docs
-> and commits are in English.
+> **Status:** feature-complete (nine stages, see the roadmap); the public deploy is next. The interface is
+> in Brazilian Portuguese; code, docs and commits are in English.
 
-## What works so far
+![The one-click demo: approving a delivery, searching without accents, a showcase freelancer's proposal
+arriving, switching to the freelancer's wallet and the demo's inbox](docs/demo.gif)
+
+## Try it in one click
+
+The landing page opens a demo of your own, with no sign-up: pick the client, the freelancer or the admin,
+and switch between them from the banner. It comes with a contract under way (a delivery waiting for your
+approval) and an open project that showcase freelancers answer with proposals a few seconds later; they
+also reply to messages. Emails are never sent from a demo: they land in its own inbox. Each demo is
+private, limited (five new demos per address an hour, 200 alive at once, 60 actions a minute) and gone,
+money and audit trail included, after 24 hours.
+
+## What works
 
 - **Accounts.** Sign up, confirm the address by email, sign in and out, reset a forgotten password.
   Answers never reveal whether an address has an account; the email tells its owner instead.
@@ -56,7 +68,11 @@ An npm-workspaces monorepo:
 The browser reaches the API through a `/api` rewrite on the web app's own origin (first-party cookie). The
 API is bundled with esbuild, with SWC compiling the TypeScript so NestJS gets its decorator metadata.
 
-A few rules every later feature builds on:
+The main decisions are recorded as ADRs in [`docs/adr`](docs/adr): demo isolation, ledger invariants,
+the transition rule, time rules without a job queue, real time with writes over REST, Portuguese search
+and the free single-instance deployment.
+
+A few rules every feature builds on:
 
 - **Sessions** are database rows behind a random httpOnly, SameSite=Lax cookie (only its SHA-256 is
   stored). State-changing requests must carry the web app's `Origin`. Passwords use Argon2id, at most two
@@ -137,4 +153,4 @@ npm run dev                        # API on :8040, web on http://localhost:3030
 6. ✅ Double-blind reviews and reputation
 7. ✅ Search in Portuguese (full text, filters, facets)
 8. ✅ Moderation and email notifications
-9. One-click demo with simulated activity, end-to-end tests, final deploy
+9. ✅ One-click demo with simulated activity, end-to-end tests (the public deploy is next)
