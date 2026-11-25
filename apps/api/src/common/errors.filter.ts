@@ -36,7 +36,9 @@ export class ErrorsFilter implements ExceptionFilter {
           ? (exception as { statusCode: number }).statusCode
           : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    if (status >= 500) {
+    // Unexpected failures say nothing; a deliberate 503 (a temporary limit, like a full demo) says why.
+    const deliberate = exception instanceof HttpException && status === HttpStatus.SERVICE_UNAVAILABLE;
+    if (status >= 500 && !deliberate) {
       this.logger.error(
         exception instanceof Error ? (exception.stack ?? exception.message) : String(exception),
       );
