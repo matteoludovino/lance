@@ -17,8 +17,8 @@ export interface Recipient {
 
 /**
  * Sends email over SMTP (Mailpit locally). Demo accounts never get real email: theirs are kept for the
- * visitor to read in the app. Without an SMTP server, everything is kept, and so is email to the seeded
- * people's undeliverable addresses. Called from outbox handlers,
+ * visitor to read in the app's demo inbox. Without an SMTP server, everything is kept. Seeded people get
+ * none. Called from outbox handlers,
  * so a failure here is retried later.
  */
 @Injectable()
@@ -61,8 +61,10 @@ export class Mailer implements OnModuleDestroy {
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       };
     }
-    // Seeded people have reserved .invalid addresses (RFC 2606): nothing to deliver to.
-    if (this.transport && !to.sandboxId && !to.email.endsWith(".invalid")) {
+    // Seeded people have reserved .invalid addresses (RFC 2606) and no one reads them: nothing to send
+    // or keep (kept, a demo visitor's activity would leave their email behind after the demo is gone).
+    if (!to.sandboxId && to.email.endsWith(".invalid")) return;
+    if (this.transport && !to.sandboxId) {
       await this.transport.sendMail({
         from: this.env.MAIL_FROM,
         to: to.email,
